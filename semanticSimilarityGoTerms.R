@@ -90,7 +90,7 @@ computeIC <- function(goAnno, ont) {
 
 
 #' Generates GO annotations used for semantic similarity
-#' @param filePath Path to the tab separated file contaning GO protein annotations
+#' @param filePath Path to the tab separated file containing GO protein annotations
 #' @param ont Ontology for the mapping with values in BP, CC or MF. Only annotations of the listed GO namespaces BP (biological process), MF (molecular function) or CC (cellular component) are returned.
 #' @return GOSemSimData object
 getGoAnnoForOnt <- function(filePath, ont){
@@ -110,7 +110,7 @@ getGoAnnoForOnt <- function(filePath, ont){
 
 
 ##' Saves a semantic similarity matrix of the GO terms in the given dataset of GO protein annotations.
-##' @param inputFile Path to the tab separated file contaning GO protein annotations
+##' @param inputFile Path to the tab separated file containing GO protein annotations
 ##' @param ont Ontology for the mapping with values in BP, CC or MF. Only annotations of the listed GO namespaces BP (biological process), MF (molecular function) or CC (cellular component) are returned.
 ##' @param method Method for calculating the semantic similarity. It can be Resnik, Lin, Jiang, Wang
 ##' @param verbose flag to print the progress bar
