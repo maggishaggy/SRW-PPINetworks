@@ -13,7 +13,7 @@ library(GOSemSim)
 calcProteinSimMatrix <- function(inputFile1, inputFile2, method, outputFile){
   goa <- read.table(inputFile1, header = FALSE, sep='\t', col.names = c('PID', 'PID2', 'GO', ''))
   proteins <- unique(goa$PID)
-  simMatrix <- as.matrix(read.table(inputFIle2, sep = '\t'))
+  simMatrix <- as.matrix(read.table(inputFile2, sep = '\t'))
   
   numProteins <- length(proteins)
   
