@@ -1,5 +1,6 @@
 import pandas as pd
 from sklearn import preprocessing
+import numpy as np
 
 
 def load_matrix(file_name):
@@ -17,7 +18,7 @@ def normalize(file_name_from, file_name_to):
             x = matrix[[column]].values.astype(float)
             min_max_scaler = preprocessing.MinMaxScaler()
             x_scaled = min_max_scaler.fit_transform(x)[:, 0]
-            x_scaled = pd.Series(x_scaled)
+            x_scaled = pd.Series(np.around(x_scaled, 5))
             matrix[column] = x_scaled
     write_matrix(matrix, file_name_to)
 
