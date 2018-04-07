@@ -10,5 +10,5 @@ This repository is an implementation of the [Supervised Random Walks algorithm](
 - Preprocessing scripts:
   - *find_largest_component.py*
   - *min_max_normalization.py*
-  - *semanticSimilarityGoTerms.R* and *semanticSimilarityGoTerms.py* - - calculation of semantic similarity of GO terms
+  - *semanticSimilarityGoTerms.R* and *semanticSimilarityGoTerms.py* - calculation of semantic similarity of GO terms
   - *semanticSimilarityProteins.R* and *semanticSimilarityProteins.py* - calculation of semantic similarity of proteins
