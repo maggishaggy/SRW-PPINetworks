@@ -1,6 +1,6 @@
+import functools
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
-import functools
 
 
 def logistic_function(x, b):
@@ -141,7 +141,7 @@ def gradient_function(graph, features, sources, destinations, alpha, max_iter,
     for source, i in zip(sources, range(len(sources))):
         Q = get_transition_matrix(Q_prim, source, alpha)
         p = iterative_page_rank(Q, epsilon, max_iter)
-        dp = iterative_page_rank_derivative(p, Q, epsilon, max_iter, w, features, strengths, graph, Q, alpha)
+        dp = iterative_page_rank_derivative(p, Q, A, epsilon, max_iter, w, features, alpha)
         l_set = list(set(graph.vs.indices) - set(destinations[i] + [source]))
         diff = get_differences(p, l_set, destinations)
         dh = derivative_logistic_function(diff, margin_loss)
@@ -171,13 +171,15 @@ def iterative_page_rank(trans, epsilon, max_iter):
     return p_new[0]
 
 
-def iterative_page_rank_derivative(p, trans, epsilon, max_iter, w, features, strengths, graph, Q, alpha):
+def iterative_page_rank_derivative(p, Q, A, epsilon, max_iter, w, features, alpha):
     """ Derivative of PageRank vector p
 
     :param p: PageRank vector
     :param p: numpy.array
-    :param trans: transition matrix
-    :type trans: numpy.array
+    :param Q: transition matrix
+    :type Q: numpy.array
+    :param A: adjacency strength matrix
+    :type A: numpy.array
     :param epsilon: tolerance parameter
     :type epsilon: float
     :param max_iter: maximum number of iterations
@@ -186,28 +188,20 @@ def iterative_page_rank_derivative(p, trans, epsilon, max_iter, w, features, str
     :type w: numpy.array
     :param features: feature vector
     :type features: numpy.array
-    :param strengths: edge strengths
-    :type strengths: numpy.array
-    :param graph: igraph object
-    :type graph: igraph.Graph
-    :param Q: transition matrix
-    :type Q: numpy.array
     :param alpha: restart probability
     :type alpha: float
     :return: derivative of PageRank vector
     :rtype: numpy.array
     """
-    dp = np.zeros((trans.shape[0], len(w)))
+    dp = np.zeros((Q.shape[0], len(w)))
     dstrengths = logistic_edge_strength_derivative_function(w, features)
     for k in range(len(w)):
         t = 0
-        graph.es['strength'] = strengths.flatten()
-        graph.es['temp'] = np.transpose(dstrengths)[:, k].flatten()
-        A = np.array(graph.get_adjacency(attribute='strength').data)
-        dA = np.array(graph.get_adjacency(attribute='temp').data)
+        dA = np.copy(A)
+        dA[dA > 0] = np.transpose(dstrengths)[:, k]
         A_rowsum = np.diag(A.sum(axis=1))
         dA_rowsum = np.diag(dA.sum(axis=1))
-        rec = np.linalg.matrix_power(A_rowsum, -2)
+        rec = np.diag(np.power(A.sum(axis=1), -2))
         dQk = (1 - alpha) * np.dot(rec, np.dot(A_rowsum, dA) - np.dot(dA_rowsum, A))
         while True:
             t += 1
@@ -265,7 +259,7 @@ def objective_function(graph, features, sources, destinations, alpha, max_iter,
 
 
 def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=1, margin_loss=0.4, max_iter=100):
-    """ Calculates the optimized parameter vector w with supervised random walk algorithm
+    """ Calculates the optimized parameter vector w with supervised random walk algorithm (lBFGS-b)
 
     :param graph: igraph object
     :type graph: igraph.Graph
@@ -281,8 +275,16 @@ def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=
     :type margin_loss: float
     :param max_iter: maximum number of iterations
     :type max_iter: int
-    :return: optimized parameter vector w
-    :rtype: numpy.array
+    :return: result of the optimization with the optimized parameter vector w, optimized function value,
+    Information dictionary.
+        - d['warnflag'] is
+                - 0 if converged,
+                - 1 if too many function evaluations or too many iterations,
+                - 2 if stopped for another reason, given in d['task']
+        - d['grad'] is the gradient at the minimum (should be 0 ish)
+        - d['funcalls'] is the number of function calls made.
+        - d['nit'] is the number of iterations.
+    :rtype: numpy.array, float, dict
     """
     epsilon = 1e-12
     small_epsilon = 1e-18
@@ -291,18 +293,46 @@ def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=
 
     w = np.ones((len(graph.es.attributes()), 1))
 
-    '''    
-    gradient_function(graph, features, sources, destinations, alpha, 
-                      max_iter, lambda_par, epsilon, small_epsilon, margin_loss, w)
+    result = fmin_l_bfgs_b(functools.partial(objective_function, graph, features, sources, destinations, alpha,
+                                             max_iter, lambda_par, epsilon, small_epsilon, margin_loss),
+                           w,
+                           functools.partial(gradient_function, graph, features, sources, destinations, alpha,
+                                             max_iter, lambda_par, epsilon, small_epsilon, margin_loss))
 
-    objective_function(graph, features, sources, destinations, alpha,
-                       max_iter, lambda_par, epsilon, small_epsilon, margin_loss, w)
-    '''
+    return result
 
-    w_optimized = fmin_l_bfgs_b(functools.partial(objective_function, graph, features, sources, destinations, alpha,
-                                                  max_iter, lambda_par, epsilon, small_epsilon, margin_loss),
-                                w,
-                                functools.partial(gradient_function, graph, features, sources, destinations, alpha,
-                                                  max_iter, lambda_par, epsilon, small_epsilon, margin_loss))
 
-    return w_optimized
+def random_walks(graph, parameters, sources, alpha=0.3, max_iter=100):
+    """ Random walk with given parameters
+
+    :param graph: igraph object
+    :type graph: igraph.Graph
+    :param parameters:
+    :type parameters:
+    :param sources: list of indices of source nodes
+    :type sources: list(int)
+    :param alpha: restart probability
+    :type alpha: float
+    :param lambda_param: regularization parameter
+    :type lambda_param: float
+    :param max_iter: maximum number of iterations
+    :type max_iter: int
+    :return: p vector for every source node
+    :rtype: numpy.array
+    """
+    epsilon = 1e-12
+    small_epsilon = 1e-18
+
+    features = np.array([graph.es[feature] for feature in graph.es.attributes()]).T
+
+    strengths = logistic_edge_strength_function(parameters, features) + small_epsilon
+    graph.es['strength'] = strengths.flatten()
+    A = np.array(graph.get_adjacency(attribute='strength').data)
+    Q_prim = get_stochastic_transition_matrix(A)
+    result = np.zeros((len(sources), Q_prim.shape[0]))
+    for source, i in zip(sources, range(len(sources))):
+        Q = get_transition_matrix(Q_prim, source, alpha)
+        p = iterative_page_rank(Q, epsilon, max_iter)
+        result[i] = p
+
+    return result
