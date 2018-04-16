@@ -259,7 +259,8 @@ def objective_function(graph, features, sources, destinations, alpha, max_iter,
 
 
 def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=1, margin_loss=0.4, max_iter=100):
-    """ Calculates the optimized parameter vector w with supervised random walk algorithm (lBFGS-b)
+    """ Calculates the optimized parameter vector w with supervised random walk algorithm
+    (lBFGS-b) from directed network
 
     :param graph: igraph object
     :type graph: igraph.Graph
@@ -303,7 +304,7 @@ def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=
 
 
 def random_walks(graph, parameters, sources, alpha=0.3, max_iter=100):
-    """ Random walk with given parameters
+    """ Random walk with given parameters and directed graph
 
     :param graph: igraph object
     :type graph: igraph.Graph
