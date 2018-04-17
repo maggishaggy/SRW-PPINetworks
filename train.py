@@ -26,11 +26,24 @@ def train_dummy_example():
     if result[2]['warnflag'] == 0:
         print('Optimization converged!')
     else:
-        print('No convergence. ' + result[2]['task'])
+        print('No convergence. ' + str(result[2]['task']))
     w = result[0]
     print('Optimized parameters: ')
     print(w)
     print('Training elapsed time: ' + str(time.time() - start))
+
+    start = time.time()
+    result = srw_gpu(graph.copy(), [graph.vs[0].index], [graph.vs[1, 3].indices])
+    if result[2]['warnflag'] == 0:
+        print('Optimization converged!')
+    else:
+        print('No convergence. ' + str(result[2]['task']))
+    w = result[0]
+    print('Optimized parameters: ')
+    print(w)
+    print('Training elapsed time: ' + str(time.time() - start))
+
+
 
     print('\nTesting')
     p_vectors = rw(graph.copy(), w, graph.vs.indices)
@@ -46,7 +59,7 @@ def train_protein_based_function_prediction(graph, sources, destinations, gpu=Fa
     if result[2]['warnflag'] == 0:
         print('Optimization converged!')
     else:
-        print('No convergence. ' + result[2]['task'])
+        print('No convergence. ' + str(result[2]['task']))
     w = result[0]
     print('Optimized parameters: ')
     print(w)
