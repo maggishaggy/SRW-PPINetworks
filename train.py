@@ -2,8 +2,8 @@ import time
 import numpy as np
 from igraph import *
 import pandas as pd
-# from supervised_random_walks import supervised_random_walks, random_walks
-from supervised_random_walks_gpu import supervised_random_walks, random_walks
+from supervised_random_walks import supervised_random_walks as srw, random_walks as rw
+from supervised_random_walks_gpu import supervised_random_walks as srw_gpu, random_walks as rw_gpu
 
 
 def train_dummy_example():
@@ -22,7 +22,7 @@ def train_dummy_example():
 
     print(graph.es[0].attributes())
     start = time.time()
-    result = supervised_random_walks(graph.copy(), [graph.vs[0].index], [graph.vs[1, 3].indices])
+    result = srw(graph.copy(), [graph.vs[0].index], [graph.vs[1, 3].indices])
     if result[2]['warnflag'] == 0:
         print('Optimization converged!')
     else:
@@ -33,13 +33,16 @@ def train_dummy_example():
     print('Training elapsed time: ' + str(time.time() - start))
 
     print('\nTesting')
-    p_vectors = random_walks(graph.copy(), w, graph.vs.indices)
+    p_vectors = rw(graph.copy(), w, graph.vs.indices)
     print(p_vectors)
 
 
-def train_protein_based_function_prediction(graph, sources, destnations):
+def train_protein_based_function_prediction(graph, sources, destinations, gpu=False):
     start = time.time()
-    result = supervised_random_walks(graph.copy(), sources, destnations)
+    if gpu:
+        result = srw_gpu(graph.copy(), sources, destinations)
+    else:
+        result = srw(graph.copy(), sources, destinations)
     if result[2]['warnflag'] == 0:
         print('Optimization converged!')
     else:
@@ -53,7 +56,7 @@ def train_protein_based_function_prediction(graph, sources, destnations):
 
 def protein_based_function_prediction(file_path):
     if os.path.exists(file_path):
-        ppi = pd.read_csv(file_path, header=0)[:1000]
+        ppi = pd.read_csv(file_path, header=0)[:5000]
     else:
         raise Exception('{} does not exist'.format(file_path))
 
@@ -73,6 +76,7 @@ def protein_based_function_prediction(file_path):
         destinations.append(destination)
 
     w = train_protein_based_function_prediction(graph, sources, destinations)
+    w = train_protein_based_function_prediction(graph, sources, destinations, gpu=True)
 
 
 if __name__ == '__main__':

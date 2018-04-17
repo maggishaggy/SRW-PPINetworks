@@ -141,7 +141,7 @@ def gradient_function(graph, features, sources, destinations, alpha, max_iter,
     for source, i in zip(sources, range(len(sources))):
         Q = get_transition_matrix(Q_prim, source, alpha)
         p = iterative_page_rank(Q, epsilon, max_iter)
-        dp = iterative_page_rank_derivative(p, Q, A, epsilon, max_iter, w, features, alpha)
+        dp = iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, features, alpha)
         l_set = list(set(graph.vs.indices) - set(destinations[i] + [source]))
         diff = get_differences(p, l_set, destinations)
         dh = derivative_logistic_function(diff, margin_loss)
@@ -171,9 +171,11 @@ def iterative_page_rank(trans, epsilon, max_iter):
     return p_new[0]
 
 
-def iterative_page_rank_derivative(p, Q, A, epsilon, max_iter, w, features, alpha):
+def iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, features, alpha):
     """ Derivative of PageRank vector p
 
+    :param graph: igraph object
+    :type graph: igraph.Graph
     :param p: PageRank vector
     :param p: numpy.array
     :param Q: transition matrix
@@ -197,8 +199,8 @@ def iterative_page_rank_derivative(p, Q, A, epsilon, max_iter, w, features, alph
     dstrengths = logistic_edge_strength_derivative_function(w, features)
     for k in range(len(w)):
         t = 0
-        dA = np.copy(A)
-        dA[dA > 0] = np.transpose(dstrengths)[:, k]
+        graph.es['temp'] = np.transpose(dstrengths)[:, k].flatten()
+        dA = np.array(graph.get_adjacency(attribute='temp').data)
         A_rowsum = np.diag(A.sum(axis=1))
         dA_rowsum = np.diag(dA.sum(axis=1))
         rec = np.diag(np.power(A.sum(axis=1), -2))
