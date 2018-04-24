@@ -43,8 +43,6 @@ def train_dummy_example():
     print(w)
     print('Training elapsed time: ' + str(time.time() - start))
 
-
-
     print('\nTesting')
     p_vectors = rw(graph.copy(), w, graph.vs.indices)
     print(p_vectors)
@@ -69,17 +67,19 @@ def train_protein_based_function_prediction(graph, sources, destinations, gpu=Fa
 
 def protein_based_function_prediction(file_path):
     if os.path.exists(file_path):
-        ppi = pd.read_csv(file_path, header=0)[:5000]
+        ppi = pd.read_csv(file_path, header=0)
     else:
         raise Exception('{} does not exist'.format(file_path))
 
-    graph = Graph(directed=True)
+    # graph = Graph(directed=True)
+    graph = Graph(directed=False)
     vertices = np.unique(np.concatenate((ppi[['protein1']].values, ppi[['protein2']].values))).tolist()
     graph.add_vertices(vertices)
     graph.add_edges(ppi[['protein1', 'protein2']].values)
-    graph.add_edges(ppi[['protein2', 'protein1']].values)
     for feature in ppi.columns[2:]:
-        graph.es[feature] = ppi[feature].values.tolist() + ppi[feature].values.tolist()
+        graph.es[feature] = ppi[feature].values.tolist()
+
+    del ppi
 
     sources = np.random.choice(np.array(graph.vs.indices), 1).tolist()
     destinations = []
@@ -89,7 +89,7 @@ def protein_based_function_prediction(file_path):
         destinations.append(destination)
 
     w = train_protein_based_function_prediction(graph, sources, destinations)
-    w = train_protein_based_function_prediction(graph, sources, destinations, gpu=True)
+    # w = train_protein_based_function_prediction(graph, sources, destinations, gpu=True)
 
 
 if __name__ == '__main__':
