@@ -315,10 +315,15 @@ def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=
                                              max_iter, lambda_par, epsilon, small_epsilon, margin_loss),
                            w,
                            functools.partial(gradient_function, graph, features, sources, destinations, alpha,
-                                             max_iter, lambda_par, epsilon, small_epsilon, margin_loss))
+                                             max_iter, lambda_par, epsilon, small_epsilon, margin_loss),
+                           callback=callback_func)
 
     return result
 
+
+def callback_func(x):
+    with open('results.txt', 'a') as file:
+        file.write("\t".join(str(item) for item in x.tolist()) + '\n')
 
 def random_walks(graph, parameters, sources, alpha=0.3, max_iter=100):
     """ Random walk with given parameters and directed graph
