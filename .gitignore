@@ -79,5 +79,6 @@ tmtagsHistory
 
 
 # Files
+data/
 *.csv
 *.txt
