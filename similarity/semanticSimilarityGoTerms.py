@@ -1,7 +1,9 @@
-import fastsemsim
-from fastsemsim import SemSim
+from __future__ import print_function
+
 import time
+import fastsemsim
 import numpy as np
+from fastsemsim import SemSim
 
 
 def load_ontology():
@@ -85,8 +87,8 @@ def compute_matrix(terms, measure, go, is_resnik=False):
             matrix[i][j] = val
             matrix[j][i] = val
     elapsed = time.clock() - start
-    print 'Number of terms: ' + str(len(terms))
-    print 'Elapsed time: ' + str(round(elapsed, 5))
+    print('Number of terms: ' + str(len(terms)))
+    print('Elapsed time: ' + str(round(elapsed, 5)))
     return matrix
 
 
@@ -124,7 +126,7 @@ ppi_900_go_cc_terms_lin = 'Data/HumanPPI900_GO_CC_modified_terms_lin.txt'
 ppi_900_go_mf_terms_lin = 'Data/HumanPPI900_GO_MF_modified_terms_lin.txt'
 # ontology = load_ontology()
 
-print '===========700'
+print('===========700')
 
 ontology = load_custom_ontology('BP')
 ac = load_annotation_corpus(ontology, ppi_700_go_bp)
@@ -132,11 +134,11 @@ go_terms = ac.reverse_annotations.keys()
 go_terms = sorted(go_terms)
 resnik = SemSim.ResnikSemSim(ontology, ac)
 lin = SemSim.LinSemSim(ontology, ac)
-print '============BP'
-print ' =======Resnik'
+print('============BP')
+print(' =======Resnik')
 similarity = compute_matrix(go_terms, resnik, ontology, True)
 save(ppi_700_go_bp_terms_resnik, go_terms, similarity)
-print ' ==========Lin'
+print(' ==========Lin')
 similarity = compute_matrix(go_terms, lin, ontology)
 save(ppi_700_go_bp_terms_lin, go_terms, similarity)
 
@@ -146,11 +148,11 @@ go_terms = ac.reverse_annotations.keys()
 go_terms = sorted(go_terms)
 resnik = SemSim.ResnikSemSim(ontology, ac)
 lin = SemSim.LinSemSim(ontology, ac)
-print '\n============CC'
-print ' =======Resnik'
+print('\n============CC')
+print(' =======Resnik')
 similarity = compute_matrix(go_terms, resnik, ontology, True)
 save(ppi_700_go_cc_terms_resnik, go_terms, similarity)
-print ' ==========Lin'
+print(' ==========Lin')
 similarity = compute_matrix(go_terms, lin, ontology)
 save(ppi_700_go_cc_terms_lin, go_terms, similarity)
 
@@ -160,16 +162,16 @@ go_terms = ac.reverse_annotations.keys()
 go_terms = sorted(go_terms)
 resnik = SemSim.ResnikSemSim(ontology, ac)
 lin = SemSim.LinSemSim(ontology, ac)
-print '\n============MF'
-print ' =======Resnik'
+print('\n============MF')
+print(' =======Resnik')
 similarity = compute_matrix(go_terms, resnik, ontology, True)
 save(ppi_700_go_mf_terms_resnik, go_terms, similarity)
-print ' ==========Lin'
+print(' ==========Lin')
 similarity = compute_matrix(go_terms, lin, ontology)
 save(ppi_700_go_mf_terms_lin, go_terms, similarity)
 
 
-print '\n\n===========900'
+print('\n\n===========900')
 
 ontology = load_custom_ontology('BP')
 ac = load_annotation_corpus(ontology, ppi_900_go_bp)
@@ -177,11 +179,11 @@ go_terms = ac.reverse_annotations.keys()
 go_terms = sorted(go_terms)
 resnik = SemSim.ResnikSemSim(ontology, ac)
 lin = SemSim.LinSemSim(ontology, ac)
-print '============BP'
-print ' =======Resnik'
+print('============BP')
+print(' =======Resnik')
 similarity = compute_matrix(go_terms, resnik, ontology, True)
 save(ppi_900_go_bp_terms_resnik, go_terms, similarity)
-print ' ==========Lin'
+print(' ==========Lin')
 similarity = compute_matrix(go_terms, lin, ontology)
 save(ppi_900_go_bp_terms_lin, go_terms, similarity)
 
@@ -191,11 +193,11 @@ go_terms = ac.reverse_annotations.keys()
 go_terms = sorted(go_terms)
 resnik = SemSim.ResnikSemSim(ontology, ac)
 lin = SemSim.LinSemSim(ontology, ac)
-print '\n============CC'
-print ' =======Resnik'
+print('\n============CC')
+print(' =======Resnik')
 similarity = compute_matrix(go_terms, resnik, ontology, True)
 save(ppi_900_go_cc_terms_resnik, go_terms, similarity)
-print ' ==========Lin'
+print(' ==========Lin')
 similarity = compute_matrix(go_terms, lin, ontology)
 save(ppi_900_go_cc_terms_lin, go_terms, similarity)
 
@@ -205,10 +207,10 @@ go_terms = ac.reverse_annotations.keys()
 go_terms = sorted(go_terms)
 resnik = SemSim.ResnikSemSim(ontology, ac)
 lin = SemSim.LinSemSim(ontology, ac)
-print '\n============MF'
-print ' =======Resnik'
+print('\n============MF')
+print(' =======Resnik')
 similarity = compute_matrix(go_terms, resnik, ontology, True)
 save(ppi_900_go_mf_terms_resnik, go_terms, similarity)
-print ' ==========Lin'
+print(' ==========Lin')
 similarity = compute_matrix(go_terms, lin, ontology)
 save(ppi_900_go_mf_terms_lin, go_terms, similarity)
