@@ -25,9 +25,9 @@ def get_number_of_annotations(file_name, output_file, histogram_file=None):
 
 
 if __name__ == '__main__':
-    get_number_of_annotations('../data/human_ppi_700/HumanPPI_GO_BP_no_bias.txt',
-                              '../data/human_ppi_700/HumanPPI_GO_BP_no_bias_count.txt')
-    get_number_of_annotations('../data/human_ppi_700/HumanPPI_GO_MF_no_bias.txt',
-                              '../data/human_ppi_700/HumanPPI_GO_MF_no_bias_count.txt')
-    get_number_of_annotations('../data/human_ppi_700/HumanPPI_GO_CC_no_bias.txt',
-                              '../data/human_ppi_700/HumanPPI_GO_CC_no_bias_count.txt')
+    get_number_of_annotations('../data/human_ppi_700/HumanPPI_GO_BP.txt',
+                              '../data/human_ppi_700/HumanPPI_GO_BP_count.txt')
+    get_number_of_annotations('../data/human_ppi_700/HumanPPI_GO_MF.txt',
+                              '../data/human_ppi_700/HumanPPI_GO_MF_count.txt')
+    get_number_of_annotations('../data/human_ppi_700/HumanPPI_GO_CC.txt',
+                              '../data/human_ppi_700/HumanPPI_GO_CC_count.txt')

@@ -38,15 +38,15 @@ def get_go_terms_relationships():
 
     go_bp = pd.read_csv('../data/go/BPGOfull.txt', header=None, sep=' ', names=['term1', 'relation', 'term2'])
     # filter for child-parent relations
-    go_bp = go_bp.loc[go_bp['relation'] == 'is_a']
+    go_bp = go_bp.loc[((go_bp['relation'] == 'is_a') | (go_bp['relation'] == 'part_of'))]
 
     go_mf = pd.read_csv('../data/go/MFGOfull.txt', header=None, sep=' ', names=['term1', 'relation', 'term2'])
     # filter for child-parent relations
-    go_mf = go_mf.loc[go_mf['relation'] == 'is_a']
+    go_mf = go_mf.loc[((go_mf['relation'] == 'is_a') | (go_mf['relation'] == 'part_of'))]
 
     go_cc = pd.read_csv('../data/go/CCGOfull.txt', header=None, sep=' ', names=['term1', 'relation', 'term2'])
     # filter for child-parent relations
-    go_cc = go_cc.loc[go_cc['relation'] == 'is_a']
+    go_cc = go_cc.loc[((go_cc['relation'] == 'is_a') | (go_cc['relation'] == 'part_of'))]
 
     return pd.concat([go_bp, go_mf, go_cc], ignore_index=True)
 
@@ -133,9 +133,9 @@ def get_protein_go_annotations(include_parents=True):
                 protein_annotations[protein_id].update(go_terms_with_parents[go_id])
         else:
             if protein_id not in protein_annotations:
-                protein_annotations[protein_id] = set(go_id)
+                protein_annotations[protein_id] = {go_id}
             else:
-                protein_annotations[protein_id].update(set(go_id))
+                protein_annotations[protein_id].update({go_id})
 
     return protein_annotations
 
