@@ -10,9 +10,8 @@ source("resnikLinMethods.R")
 ##' @param inputFile Path to the tab separated file containing GO protein annotations
 ##' @param ont Ontology for the mapping with values in BP, CC or MF. Only annotations of the listed GO namespaces BP (biological process), MF (molecular function) or CC (cellular component) are returned.
 ##' @param method Method for calculating the semantic similarity. It can be Resnik, Lin, Jiang, Wang
-##' @param verbose flag to print the progress bar
 ##' @param outputFile Path to save the similarity matrix
-calcGOSimMatrix <- function(inputFile, ont, method, outputFile, verbose = TRUE){
+calcGOSimMatrix <- function(inputFile, ont, method, outputFile){
   
   if(ont == "BP")
     go_data <- read.table("../data/go/BPGOfull.txt", header = FALSE, sep = ' ', col.names = c('child', 'relationship', 'parent'), stringsAsFactors=FALSE)
@@ -28,13 +27,12 @@ calcGOSimMatrix <- function(inputFile, ont, method, outputFile, verbose = TRUE){
     go <- sort(go)
     message('Computing GO terms similarities ...')
     startTime <- Sys.time()
-    
+	
     scores <- wangMethodSim(go, go, go_data)
-    diag(scores) <- 1
+	diag(scores) <- 1
     
     endTime <- Sys.time()
     print(endTime - startTime)
-    
     write.table(scores, outputFile, sep = '\t')
     message("Done.")
   }
@@ -114,6 +112,7 @@ calculateSim900 <- function(){
   calcGOSimMatrix("../data/human_ppi_900/HumanPPI_GO_CC_no_bias.txt", "CC", "Lin", "../data/sim/human_ppi_900/GO_CC_no_bias_lin.txt")
   calcGOSimMatrix("../data/human_ppi_900/HumanPPI_GO_CC_no_bias.txt", "CC", "Wang", "../data/sim/human_ppi_900/GO_CC_no_bias_wang.txt")
 }
+
 
 calculateSim700()
 calculateSim900()
