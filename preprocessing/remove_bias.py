@@ -7,7 +7,6 @@ and
 and modifies the files: HumanPPI_GO_BP.txt, HumanPPI_GO_MF.txt, HumanPPI_GO_CC.txt for both 700 and 900 ppi types
 """
 import time
-import numpy as np
 import pandas as pd
 
 
@@ -19,13 +18,15 @@ def get_children_relations(file):
     :return: parent children relations in dictionary
     :rtype: dict
     """
-    go_bp = pd.read_csv(file, header=None, sep=' ', names=['term1', 'relation', 'term2'])
+    go_relations = pd.read_csv(file, header=None, sep=' ', names=['child', 'relation', 'parent'])
     # filter for child-parent relations
-    go_bp = go_bp.loc[go_bp['relation'] == 'is_a']
-    parents = set(go_bp['term2'].values.tolist())
+    go_relations = go_relations.loc[((go_relations['relation'] == 'is_a') | (go_relations['relation'] == 'part_of'))]
+
+    parents = set(go_relations['parent'].values.tolist())
     relations = dict()
     for term in parents:
-        relations[term] = set(go_bp.loc[go_bp['term2'] == term]['term1'].values.tolist())
+        relations[term] = set(go_relations.loc[go_relations['parent'] == term]['child'].values.tolist())
+
     return relations
 
 

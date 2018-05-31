@@ -87,7 +87,7 @@ def calc_protein_similarities(type_filtering, go_type):
     lcc_proteins = get_proteins_from_largest_connected_component(interactions)
     interactions = interactions.join(pd.DataFrame({'protein1': lcc_proteins}).set_index('protein1'),
                                      how='inner', on='protein1')
-    annotations_file = f'../data/human_ppi_700/HumanPPI_GO_{go_type}_no_bias.txt'
+    annotations_file = f'../data/human_ppi_{type_filtering}/HumanPPI_GO_{go_type}_no_bias.txt'
     annotations = pd.read_table(annotations_file, header=0, names=['PID', 'GO'])
     annotations = annotations.groupby('PID')['GO'].apply(list).to_dict()
     go_similarities_files = [f'../data/sim/human_ppi_{type_filtering}/GO_{go_type}_no_bias_resnik.txt',
@@ -114,9 +114,9 @@ def calc_protein_similarities(type_filtering, go_type):
     
 
 if __name__ == '__main__':
-    calc_protein_similarities('700', 'BP')
-    calc_protein_similarities('700', 'MF')
-    calc_protein_similarities('700', 'CC')
-    # calc_protein_similarities('900', 'BP')
-    # calc_protein_similarities('900', 'MF')
-    # calc_protein_similarities('900', 'CC')
+    # calc_protein_similarities('700', 'BP')
+    # calc_protein_similarities('700', 'MF')
+    # calc_protein_similarities('700', 'CC')
+    calc_protein_similarities('900', 'BP')
+    calc_protein_similarities('900', 'MF')
+    calc_protein_similarities('900', 'CC')
