@@ -1,4 +1,5 @@
 import time
+import pickle
 import numpy as np
 from igraph import *
 import pandas as pd
@@ -65,11 +66,11 @@ def train_protein_based_function_prediction(graph, sources, destinations, gpu=Fa
     return w
 
 
-def protein_based_function_prediction(file_path):
-    if os.path.exists(file_path):
-        ppi = pd.read_csv(file_path, header=0)
+def protein_based_function_prediction(file_interactions, file_train, t1_file, t2_file, file_weights, ont, filter_type):
+    if os.path.exists(file_interactions):
+        ppi = pd.read_csv(file_interactions, header=0, sep='\t')
     else:
-        raise Exception('{} does not exist'.format(file_path))
+        raise Exception('{} does not exist'.format(file_interactions))
 
     # graph = Graph(directed=True)
     graph = Graph(directed=False)
@@ -81,18 +82,40 @@ def protein_based_function_prediction(file_path):
 
     del ppi
 
-    sources = np.random.choice(np.array(graph.vs.indices), 1).tolist()
-    destinations = []
-    for source in sources:
-        possibilities = np.array(list(set(graph.vs.indices).difference([source])))
-        destination = np.random.choice(possibilities, 50).tolist()
-        destinations.append(destination)
+    indices = graph.vs['name']
+    sources = [indices.index(source)
+               for source in pd.read_csv(file_train, header=0, sep='\t').protein_id.values.tolist()
+               if source in indices]
+    t1_ann = pd.read_csv(t1_file, header=0, sep='\t', names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
+    t2_ann = pd.read_csv(t2_file, header=0, sep='\t', names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
+    if os.path.exists(f'data/trained/human_ppi_{filter_type}/train_destinations_{ont}.pkl'):
+        with open(f'data/trained/human_ppi_{filter_type}/train_destinations_{ont}.pkl', 'rb') as f:
+            destinations = pickle.load(f)
+    else:
+        destinations = []
+        for source in sources:
+            anno = set(t2_ann[graph.vs[source]['name']])
+            dests = []
+            for vertex in graph.vs:
+                if vertex.index == source:
+                    continue
+                if vertex['name'] in t1_ann and len(anno.intersection(t1_ann[vertex['name']])) > 0:
+                    dests.append(vertex.index)
+            destinations.append(dests)
 
-    w = train_protein_based_function_prediction(graph, sources, destinations)
-    # w = train_protein_based_function_prediction(graph, sources, destinations, gpu=True)
+        with open(f'data/trained/human_ppi_{filter_type}/train_destinations_{ont}.pkl', 'wb') as f:
+            pickle.dump(destinations, f, pickle.HIGHEST_PROTOCOL)
+
+    #w = train_protein_based_function_prediction(graph, sources, destinations)
+    w = train_protein_based_function_prediction(graph, sources, destinations, gpu=True)
+    np.savetxt(file_weights, w)
 
 
 if __name__ == '__main__':
     # train_dummy_example()
-    file = 'data/HumanPPI700_interactions_BP_normalized.txt'
-    protein_based_function_prediction(file)
+    file = 'data/final/human_ppi_700/HumanPPI_BP_no_bias.txt'
+    train_file = 'data/final/human_ppi_700/train_BP_no_bias.txt'
+    t1_annotations = 'data/human_ppi_700/HumanPPI_GO_BP_no_bias.txt'
+    t2_annotations = 'data/human_ppi_700/t2/HumanPPI_GO_BP_no_bias.txt'
+    weights_file = 'data/trained/human_ppi_700/weights_BP_no_bias.txt'
+    protein_based_function_prediction(file, train_file, t1_annotations, t2_annotations, weights_file, 'BP', '700')

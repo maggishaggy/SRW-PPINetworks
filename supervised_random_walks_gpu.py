@@ -325,6 +325,7 @@ def callback_func(x):
     with open('results.txt', 'a') as file:
         file.write("\t".join(str(item) for item in x.tolist()) + '\n')
 
+
 def random_walks(graph, parameters, sources, alpha=0.3, max_iter=100):
     """ Random walk with given parameters and directed graph
 
