@@ -1,3 +1,4 @@
+import time
 import functools
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
@@ -103,53 +104,6 @@ def loss_function(diff, b):
     return logistic_function(diff, b)
 
 
-def gradient_function(graph, features, sources, destinations, alpha, max_iter,
-                      lambda_param, epsilon, small_epsilon, margin_loss, w):
-    """ Gradient function
-
-    :param graph: igraph object
-    :type graph: igraph.Graph
-    :param features: feature vector
-    :type features: numpy.array
-    :param w: parameter vector
-    :type w: numpy.array
-    :param sources: list of indices of source nodes
-    :type sources: list(int)
-    :param destinations: list of indices of destination nodes
-    :type destinations: list(int)
-    :param alpha: restart probability
-    :type alpha: float
-    :param max_iter: maximum number of iterations
-    :type max_iter: int
-    :param lambda_param: regularization parameter
-    :type lambda_param: float
-    :param epsilon: tolerance parameter for page rank convergence
-    :type epsilon: float
-    :param small_epsilon: change parameter in strengths of the edges
-    :rtype small_epsilon: float
-    :type small_epsilon: float
-    :param margin_loss: margin loss
-    :type margin_loss: float
-    :return: values of the gradient function
-    :rtype: numpy.array
-    """
-    gr = np.zeros(len(w))
-    strengths = logistic_edge_strength_function(w, features) + small_epsilon
-    graph.es['strength'] = strengths.flatten()
-    A = np.array(graph.get_adjacency(attribute='strength').data)
-    Q_prim = get_stochastic_transition_matrix(A)
-    for source, i in zip(sources, range(len(sources))):
-        Q = get_transition_matrix(Q_prim, source, alpha)
-        p = iterative_page_rank(Q, epsilon, max_iter)
-        dp = iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, features, alpha)
-        l_set = list(set(graph.vs.indices) - set(destinations[i] + [source]))
-        diff = get_differences(p, l_set, destinations)
-        dh = derivative_logistic_function(diff, margin_loss)
-        for k in range(len(w)):
-            gr[k] += 2 * w[k] + lambda_param * np.sum(dh * get_differences(dp[:, k], l_set, destinations))
-    return gr
-
-
 def iterative_page_rank(trans, epsilon, max_iter):
     """ Iterative power-iterator like computation of PageRank vector p
 
@@ -195,16 +149,16 @@ def iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, feature
     :return: derivative of PageRank vector
     :rtype: numpy.array
     """
-    dp = np.zeros((Q.shape[0], len(w)))
+    dp = np.zeros((Q.shape[0], w.shape[0]))
     dstrengths = logistic_edge_strength_derivative_function(w, features)
-    for k in range(len(w)):
+    for k in range(w.shape[0]):
         t = 0
         graph.es['temp'] = np.transpose(dstrengths)[:, k].flatten()
         dA = np.array(graph.get_adjacency(attribute='temp').data)
-        A_rowsum = np.diag(A.sum(axis=1))
-        dA_rowsum = np.diag(dA.sum(axis=1))
-        rec = np.diag(np.power(A.sum(axis=1), -2))
-        dQk = (1 - alpha) * np.dot(rec, np.dot(A_rowsum, dA) - np.dot(dA_rowsum, A))
+        A_rowsum = np.sum(A, axis=1).reshape(-1, 1)
+        dA_rowsum = np.sum(dA, axis=1).reshape(-1, 1)
+        rec = np.power(np.sum(A, axis=1).reshape(-1, 1), -2)
+        dQk = (1 - alpha) * rec * ((A_rowsum * dA) - (dA_rowsum * A))
         while True:
             t += 1
             dp_new = np.dot(dp[:, k], Q) + np.dot(p, dQk)
@@ -228,7 +182,7 @@ def objective_function(graph, features, sources, destinations, alpha, max_iter,
     :param sources: list of indices of source nodes
     :type sources: list(int)
     :param destinations: list of indices of destination nodes
-    :type destinations: list(int)
+    :type destinations: list(list(int))
     :param alpha: restart probability
     :type alpha: float
     :param max_iter: maximum number of iterations
@@ -254,10 +208,57 @@ def objective_function(graph, features, sources, destinations, alpha, max_iter,
         Q = get_transition_matrix(Q_prim, source, alpha)
         p = iterative_page_rank(Q, epsilon, max_iter)
         l_set = list(set(graph.vs.indices) - set(destinations[i] + [source]))
-        diff = get_differences(p, l_set, destinations)
+        diff = get_differences(p, l_set, destinations[i])
         h = loss_function(diff, margin_loss)
         loss += np.sum(h)
     return np.sum(np.square(w)) + lambda_param * loss
+
+
+def gradient_function(graph, features, sources, destinations, alpha, max_iter,
+                      lambda_param, epsilon, small_epsilon, margin_loss, w):
+    """ Gradient function
+
+    :param graph: igraph object
+    :type graph: igraph.Graph
+    :param features: feature vector
+    :type features: numpy.array
+    :param w: parameter vector
+    :type w: numpy.array
+    :param sources: list of indices of source nodes
+    :type sources: list(int)
+    :param destinations: list of indices of destination nodes
+    :type destinations: list(list(int))
+    :param alpha: restart probability
+    :type alpha: float
+    :param max_iter: maximum number of iterations
+    :type max_iter: int
+    :param lambda_param: regularization parameter
+    :type lambda_param: float
+    :param epsilon: tolerance parameter for page rank convergence
+    :type epsilon: float
+    :param small_epsilon: change parameter in strengths of the edges
+    :rtype small_epsilon: float
+    :type small_epsilon: float
+    :param margin_loss: margin loss
+    :type margin_loss: float
+    :return: values of the gradient function
+    :rtype: numpy.array
+    """
+    gr = np.zeros(len(w))
+    strengths = logistic_edge_strength_function(w, features) + small_epsilon
+    graph.es['strength'] = strengths.flatten()
+    A = np.array(graph.get_adjacency(attribute='strength').data)
+    Q_prim = get_stochastic_transition_matrix(A)
+    for source, i in zip(sources, range(len(sources))):
+        Q = get_transition_matrix(Q_prim, source, alpha)
+        p = iterative_page_rank(Q, epsilon, max_iter)
+        dp = iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, features, alpha)
+        l_set = list(set(graph.vs.indices) - set(destinations[i] + [source]))
+        diff = get_differences(p, l_set, destinations[i])
+        dh = derivative_logistic_function(diff, margin_loss)
+        for k in range(len(w)):
+            gr[k] += 2 * w[k] + lambda_param * np.sum(dh * get_differences(dp[:, k], l_set, destinations[i]))
+    return gr
 
 
 def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=1, margin_loss=0.4, max_iter=100):
@@ -269,7 +270,7 @@ def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=
     :param sources: list of indices of source nodes
     :type sources: list(int)
     :param destinations: list of indices of destination nodes
-    :type destinations: list(int)
+    :type destinations: list(list(int))
     :param alpha: restart probability
     :type alpha: float
     :param lambda_par: regularization parameter
@@ -308,7 +309,7 @@ def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=
 
 def callback_func(x):
     with open('results.txt', 'a') as file:
-        file.write("\t".join(str(item) for item in x.tolist()) + '\n')
+        file.write(time.strftime("%c") + '\t' + '\t'.join(str(item) for item in x.tolist()) + '\n')
 
 
 def random_walks(graph, parameters, sources, alpha=0.3, max_iter=100):
