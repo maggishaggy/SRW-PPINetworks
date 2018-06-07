@@ -108,7 +108,7 @@ def protein_based_function_prediction(file_interactions, file_train, t1_file, t2
         with open(f'data/trained/human_ppi_{filter_type}/train_destinations_{ont}.pkl', 'wb') as f:
             pickle.dump(destinations, f, pickle.HIGHEST_PROTOCOL)
 
-    w = train_protein_based_function_prediction(graph, sources[:3], destinations[:3])
+    w = train_protein_based_function_prediction(graph, sources, destinations)
     # w = train_protein_based_function_prediction(graph, sources, destinations, gpu=True)
     np.savetxt(file_weights, w)
 
@@ -116,11 +116,11 @@ def protein_based_function_prediction(file_interactions, file_train, t1_file, t2
 if __name__ == '__main__':
     # train_dummy_example()
     filtering_type = '700'
-    ont = 'MF'
-    file = f'data/final/human_ppi_{filtering_type}/HumanPPI_{ont}_no_bias.txt'
-    train_file = f'data/final/human_ppi_{filtering_type}/train_{ont}_no_bias.txt'
-    t1_annotations = f'data/human_ppi_{filtering_type}/HumanPPI_GO_{ont}_no_bias.txt'
-    t2_annotations = f'data/human_ppi_{filtering_type}/t2/HumanPPI_GO_{ont}_no_bias.txt'
-    weights_file = f'data/trained/human_ppi_{filtering_type}/weights_{ont}_no_bias.txt'
+    onto = 'MF'
+    file = f'data/final/human_ppi_{filtering_type}/HumanPPI_{onto}_no_bias.txt'
+    train_file = f'data/final/human_ppi_{filtering_type}/train_{onto}_no_bias.txt'
+    t1_annotations = f'data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_no_bias.txt'
+    t2_annotations = f'data/human_ppi_{filtering_type}/t2/HumanPPI_GO_{onto}_no_bias.txt'
+    weights_file = f'data/trained/human_ppi_{filtering_type}/weights_{onto}_no_bias.txt'
     protein_based_function_prediction(file, train_file, t1_annotations, t2_annotations,
-                                      weights_file, ont, filtering_type)
+                                      weights_file, onto, filtering_type)
