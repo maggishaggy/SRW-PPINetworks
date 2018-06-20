@@ -75,7 +75,7 @@ def get_stochastic_transition_matrix(A):
     :rtype: numpy.array
     """
     with gpu(0):
-        Q_prim = 1 / mx.nd.sum(A, axis=1).reshape(-1, 1) * A
+        Q_prim = 1 / mx.nd.sum(A, axis=1).reshape((-1, 1)) * A
     return Q_prim
 
 
@@ -162,11 +162,11 @@ def iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, feature
         dstrengths = logistic_edge_strength_derivative_function(w, features)
         for k in range(w.shape[0]):
             t = 0
-            graph.es['temp'] = mx.nd.transpose(dstrengths)[:, k].reshape(-1).asnumpy().tolist()
+            graph.es['temp'] = mx.nd.transpose(dstrengths)[:, k].reshape((-1,)).asnumpy().tolist()
             dA = mx.nd.array(graph.get_adjacency(attribute='temp').data)
-            A_rowsum = mx.nd.sum(A, axis=1).reshape(-1, 1)
-            dA_rowsum = mx.nd.sum(dA, axis=1).reshape(-1, 1)
-            rec = mx.nd.power(mx.nd.sum(A, axis=1).reshape(-1, 1), -2)
+            A_rowsum = mx.nd.sum(A, axis=1).reshape((-1, 1))
+            dA_rowsum = mx.nd.sum(dA, axis=1).reshape((-1, 1))
+            rec = mx.nd.power(mx.nd.sum(A, axis=1).reshape((-1, 1)), -2)
             dQk = (1 - alpha) * rec * ((A_rowsum * dA) - (dA_rowsum * A))
             while True:
                 t += 1
@@ -212,11 +212,12 @@ def objective_function(graph, features, sources, destinations, alpha, max_iter,
         features = mx.nd.array(features)
         w = mx.nd.array(w)
         strengths = logistic_edge_strength_function(w, features) + small_epsilon
-        graph.es['strength'] = strengths.reshape(-1).asnumpy()
+        graph.es['strength'] = strengths.reshape((-1,)).asnumpy()
         A = mx.nd.array(graph.get_adjacency(attribute='strength').data)
         Q_prim = get_stochastic_transition_matrix(A)
         loss = 0
         for source, i in zip(sources, range(len(sources))):
+            print('{} Objective func, source {}, index {}'.format(time.strftime("%c"), source, i))
             Q = get_transition_matrix(Q_prim, source, alpha)
             p = iterative_page_rank(Q, epsilon, max_iter)
             l_set = list(set(graph.vs.indices) - set(destinations[i] + [source]))
@@ -261,10 +262,11 @@ def gradient_function(graph, features, sources, destinations, alpha, max_iter,
         w = mx.nd.array(w)
         gr = mx.nd.zeros(w.shape[0])
         strengths = logistic_edge_strength_function(w, features) + small_epsilon
-        graph.es['strength'] = strengths.reshape(-1).asnumpy()
+        graph.es['strength'] = strengths.reshape((-1,)).asnumpy()
         A = mx.nd.array(graph.get_adjacency(attribute='strength').data)
         Q_prim = get_stochastic_transition_matrix(A)
         for source, i in zip(sources, range(len(sources))):
+            print('{} Gradient func, source {}, index {}'.format(time.strftime("%c"), source, i))
             Q = get_transition_matrix(Q_prim, source, alpha)
             p = iterative_page_rank(Q, epsilon, max_iter)
             dp = iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, features, alpha)
@@ -351,7 +353,7 @@ def random_walks(graph, parameters, sources, alpha=0.3, max_iter=100):
         parameters = mx.nd.array(parameters)
 
         strengths = logistic_edge_strength_function(parameters, features) + small_epsilon
-        graph.es['strength'] = strengths.reshape(-1).asnumpy()
+        graph.es['strength'] = strengths.reshape((-1,)).asnumpy()
         A = mx.nd.array(graph.get_adjacency(attribute='strength').data)
         Q_prim = get_stochastic_transition_matrix(A)
         result = mx.nd.zeros((len(sources), Q_prim.shape[0]))
