@@ -160,21 +160,22 @@ def iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, feature
     with gpu(0):
         dp = mx.nd.zeros((Q.shape[0], w.shape[0]))
         dstrengths = logistic_edge_strength_derivative_function(w, features)
+        A_rowsum = mx.nd.sum(A, axis=1).reshape((-1, 1))
+        rec = mx.nd.power(A_rowsum, -2)
         for k in range(w.shape[0]):
             t = 0
             graph.es['temp'] = mx.nd.transpose(dstrengths)[:, k].reshape((-1,)).asnumpy().tolist()
             dA = mx.nd.array(graph.get_adjacency(attribute='temp').data)
-            A_rowsum = mx.nd.sum(A, axis=1).reshape((-1, 1))
             dA_rowsum = mx.nd.sum(dA, axis=1).reshape((-1, 1))
-            rec = mx.nd.power(mx.nd.sum(A, axis=1).reshape((-1, 1)), -2)
             dQk = (1 - alpha) * rec * ((A_rowsum * dA) - (dA_rowsum * A))
+            prod = mx.nd.dot(p, dQk)
             while True:
                 t += 1
-                dp_new = mx.nd.dot(dp[:, k], Q) + mx.nd.dot(p, dQk)
-                pre = mx.nd.array(dp[:, k])
-                dp[:, k] = dp_new
-                if mx.nd.max(mx.nd.abs(pre - dp[:, k])).asnumpy()[0] < epsilon or t > max_iter:
+                dp_new = mx.nd.dot(dp[:, k], Q) + prod
+                if mx.nd.max(mx.nd.abs(dp_new - dp[:, k])).asnumpy()[0] < epsilon or t > max_iter:
+                    dp[:, k] = dp_new
                     break
+                dp[:, k] = dp_new
     return dp
 
 

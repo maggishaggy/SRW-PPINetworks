@@ -151,21 +151,22 @@ def iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, feature
     """
     dp = np.zeros((Q.shape[0], w.shape[0]))
     dstrengths = logistic_edge_strength_derivative_function(w, features)
+    A_rowsum = np.sum(A, axis=1).reshape(-1, 1)
+    rec = np.power(A_rowsum, -2)
     for k in range(w.shape[0]):
         t = 0
         graph.es['temp'] = np.transpose(dstrengths)[:, k].flatten()
         dA = np.array(graph.get_adjacency(attribute='temp').data)
-        A_rowsum = np.sum(A, axis=1).reshape(-1, 1)
         dA_rowsum = np.sum(dA, axis=1).reshape(-1, 1)
-        rec = np.power(np.sum(A, axis=1).reshape(-1, 1), -2)
         dQk = (1 - alpha) * rec * ((A_rowsum * dA) - (dA_rowsum * A))
+        prod = np.dot(p, dQk)
         while True:
             t += 1
-            dp_new = np.dot(dp[:, k], Q) + np.dot(p, dQk)
-            pre = np.copy(dp[:, k])
-            dp[:, k] = dp_new
-            if max(abs(pre - dp[:, k])) < epsilon or t > max_iter:
+            dp_new = np.dot(dp[:, k], Q) + prod
+            if max(abs(dp_new - dp[:, k])) < epsilon or t > max_iter:
+                dp[:, k] = dp_new
                 break
+            dp[:, k] = dp_new
     return dp
 
 
