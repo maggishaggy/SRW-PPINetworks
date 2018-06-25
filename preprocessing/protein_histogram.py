@@ -112,7 +112,7 @@ def find_minimal_union(t1, t2, hist):
 if __name__ == '__main__':
     filtering_type = '900'
     onto = 'BP'
-    t1_annotations = f'data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_no_bias.txt'
-    t2_annotations = f'data/human_ppi_{filtering_type}/t2/HumanPPI_GO_{onto}_no_bias.txt'
-    minimal_union_histogram = f'{directory}data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_histogram.txt'
+    t1_annotations = f'../data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_no_bias.txt'
+    t2_annotations = f'../data/human_ppi_{filtering_type}/t2/HumanPPI_GO_{onto}_no_bias.txt'
+    minimal_union_histogram = f'../data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_histogram.txt'
     find_minimal_union(t1_annotations, t2_annotations, minimal_union_histogram)
