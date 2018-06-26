@@ -126,10 +126,11 @@ def iterative_page_rank(trans, epsilon, max_iter):
     with gpu(0):
         p = mx.nd.ones((1, trans.shape[0])) / trans.shape[0]
         p_new = mx.nd.dot(p, trans)
-        while not (mx.nd.max(mx.nd.abs(p - p_new)).asnumpy()[0] < epsilon or max_iter <= 0):
+        for t in range(max_iter):
+            if mx.nd.max(mx.nd.abs(p - p_new)).asnumpy()[0] < epsilon:
+                break
             p = p_new
             p_new = mx.nd.dot(p, trans)
-            max_iter -= 1
     return p_new[0]
 
 
@@ -163,16 +164,14 @@ def iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, feature
         A_rowsum = mx.nd.sum(A, axis=1).reshape((-1, 1))
         rec = mx.nd.power(A_rowsum, -2)
         for k in range(w.shape[0]):
-            t = 0
             graph.es['temp'] = mx.nd.transpose(dstrengths)[:, k].reshape((-1,)).asnumpy().tolist()
             dA = mx.nd.array(graph.get_adjacency(attribute='temp').data)
             dA_rowsum = mx.nd.sum(dA, axis=1).reshape((-1, 1))
             dQk = (1 - alpha) * rec * ((A_rowsum * dA) - (dA_rowsum * A))
             prod = mx.nd.dot(p, dQk)
-            while True:
-                t += 1
+            for t in range(max_iter):
                 dp_new = mx.nd.dot(dp[:, k], Q) + prod
-                if mx.nd.max(mx.nd.abs(dp_new - dp[:, k])).asnumpy()[0] < epsilon or t > max_iter:
+                if mx.nd.max(mx.nd.abs(dp_new - dp[:, k])).asnumpy()[0] < epsilon:
                     dp[:, k] = dp_new
                     break
                 dp[:, k] = dp_new

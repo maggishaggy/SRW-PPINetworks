@@ -118,10 +118,11 @@ def iterative_page_rank(trans, epsilon, max_iter):
     """
     p = np.ones((1, trans.shape[0])) / trans.shape[0]
     p_new = np.dot(p, trans)
-    while not (np.allclose(p, p_new, rtol=0, atol=epsilon) or max_iter <= 0):
+    for t in range(max_iter):
+        if np.allclose(p, p_new, rtol=0, atol=epsilon):
+            break
         p = p_new
         p_new = np.dot(p, trans)
-        max_iter -= 1
     return p_new[0]
 
 
@@ -154,14 +155,12 @@ def iterative_page_rank_derivative(graph, p, Q, A, epsilon, max_iter, w, feature
     A_rowsum = np.sum(A, axis=1).reshape(-1, 1)
     rec = np.power(A_rowsum, -2)
     for k in range(w.shape[0]):
-        t = 0
         graph.es['temp'] = np.transpose(dstrengths)[:, k].flatten()
         dA = np.array(graph.get_adjacency(attribute='temp').data)
         dA_rowsum = np.sum(dA, axis=1).reshape(-1, 1)
         dQk = (1 - alpha) * rec * ((A_rowsum * dA) - (dA_rowsum * A))
         prod = np.dot(p, dQk)
-        while True:
-            t += 1
+        for t in range(max_iter):
             dp_new = np.dot(dp[:, k], Q) + prod
             if max(abs(dp_new - dp[:, k])) < epsilon or t > max_iter:
                 dp[:, k] = dp_new
