@@ -80,5 +80,11 @@ tmtagsHistory
 
 # Files
 data/
+summary_BP/
+summary_MF/
+summary_CC/
+models_BP/
+models_MF/
+models_CC/
 *.csv
 *.txt
