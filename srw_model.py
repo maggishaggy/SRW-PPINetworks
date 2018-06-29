@@ -275,6 +275,9 @@ class SRW:
 
     def save(self):
         """ Save the model. """
+        if not os.path.exists(self.config.save_dir):
+            os.mkdir(self.config.save_dir)
+
         config = self.config
         data = {v.name: v.eval() for v in tf.global_variables()}
         save_path = os.path.join(config.save_dir, str(self.global_step.eval()))
