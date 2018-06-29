@@ -183,7 +183,7 @@ def train_model(file_interactions, file_train, t1_file, t2_file, ont, filter_typ
 if __name__ == '__main__':
     # train_dummy_example()
     filtering_type = '700'
-    onto = 'MF'
+    onto = 'CC'
     file = f'data/final/human_ppi_{filtering_type}/HumanPPI_{onto}_no_bias.txt'
     train_file = f'data/final/human_ppi_{filtering_type}/train_{onto}_no_bias.txt'
     t1_annotations = f'data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_no_bias.txt'

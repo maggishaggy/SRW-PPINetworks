@@ -107,11 +107,11 @@ class SRW:
         return self.logistic_function(diff, b)
 
     @staticmethod
-    def iterative_page_rank(trans, epsilon, max_iter):
+    def iterative_page_rank(trans_mat, epsilon, max_iter):
         """ Iterative power-iterator like computation of PageRank vector p
 
-        :param trans: transition matrix
-        :type trans: tensorflow.Tensor
+        :param trans_mat: transition matrix
+        :type trans_mat: tensorflow.Tensor
         :param epsilon: tolerance parameter
         :type epsilon: float
         :param max_iter: maximum number of iterations
@@ -119,18 +119,27 @@ class SRW:
         :return: stationary distribution
         :rtype: tensorflow.Tensor
         """
-        def f1(): return 1
+        i0 = tf.constant(0)
+        p0 = tf.divide(tf.ones((1, trans_mat.shape[0])), tf.cast(trans_mat.shape[0], tf.float32))
+        p_new0 = tf.tensordot(p0, trans_mat, 1)
+        condition = lambda i, p, p_new, trans: tf.logical_or(tf.less(tf.reduce_max(tf.abs(tf.subtract(p, p_new))),
+                                                                     epsilon),
+                                                             tf.greater_equal(i, max_iter))
 
-        def f2(): return 0
-
-        p = tf.divide(tf.ones((1, trans.shape[0])), tf.cast(trans.shape[0], tf.float32))
-        p_new = tf.tensordot(p, trans, 1)
-        for i in range(max_iter):
+        def loop_logic(i, p, p_new, trans):
+            shape = p.get_shape()
+            i = i+1
             p = p_new
+            p.set_shape(shape)
             p_new = tf.tensordot(p, trans, 1)
-            if tf.cond(tf.reduce_max(tf.abs(tf.subtract(p, p_new))) < epsilon, f1, f2) == 1:
-                break
-        return p_new[0]
+            p_new.set_shape(shape)
+            return [i, p, p_new, trans]
+
+        tf.while_loop(condition, loop_logic, loop_vars=[i0, p0, p_new0, trans_mat],
+                      shape_invariants=[i0.get_shape(), p0.get_shape(),
+                                        p_new0.get_shape(), trans_mat.get_shape()])
+
+        return p_new0[0]
 
     def build(self):
         features = tf.placeholder(dtype=tf.float32, shape=[None,
@@ -141,9 +150,10 @@ class SRW:
         source = tf.placeholder(dtype=tf.int32, shape=[1])
 
         strengths = self.logistic_edge_strength_function(w, features) + self.config.small_epsilon
-        A = tf.SparseTensor(tf.where(tf.greater(adj, 0.0)), strengths[:, 0], dense_shape=adj.shape)
+        A = tf.SparseTensor(tf.where(tf.greater(adj, tf.constant(0, dtype=tf.float32))), strengths[:, 0],
+                            dense_shape=tf.shape(adj, out_type=tf.int64))
         # hack for bug in tensorflow because sparse_tensor_to_dense() does not have gradient
-        A = tf.sparse_add(tf.zeros(A.dense_shape), A)
+        A = tf.sparse_add(tf.zeros(tf.cast(A.dense_shape, tf.int32)), A)
         Q_prim = self.get_stochastic_transition_matrix(A)
         Q = self.get_transition_matrix(Q_prim, source, self.config.alpha)
         p = self.iterative_page_rank(Q, self.config.epsilon, self.config.max_iter)
