@@ -214,7 +214,7 @@ class SRW:
         adj = inference_data['adj']
         predictions = dict()
         for i, _ in enumerate(tqdm(list(range(inference_data['num_sources'])), desc='source')):
-            source = inference_data['data'][i]['source']
+            source = inference_data['sources'][i]
             feed_dict = {self.features: features,
                          self.adj: adj,
                          self.source: [source]}
@@ -239,7 +239,7 @@ class SRW:
         else:
             learning_rate_decay_fn = None
         with tf.variable_scope('optimizer', reuse=tf.AUTO_REUSE):
-            optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.config.initial_learning_rate)
+            optimizer = tf.train.AdamOptimizer(learning_rate=self.config.initial_learning_rate)
             opt_op = tf.contrib.layers.optimize_loss(
                 loss=self.loss,
                 global_step=self.global_step,
