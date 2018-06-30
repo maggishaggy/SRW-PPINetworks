@@ -1,8 +1,8 @@
 import time
 import pickle
 import numpy as np
-from igraph import *
 import pandas as pd
+from igraph import *
 import tensorflow as tf
 from config import Config
 from srw_model import SRW
@@ -79,7 +79,6 @@ def protein_based_function_prediction(file_interactions, file_train, t1_file, t2
     else:
         raise Exception('{} does not exist'.format(file_interactions))
 
-    # graph = Graph(directed=True)
     graph = Graph(directed=False)
     vertices = np.unique(np.concatenate((ppi[['protein1']].values, ppi[['protein2']].values))).tolist()
     graph.add_vertices(vertices)
@@ -127,7 +126,6 @@ def train_model(file_interactions, file_train, t1_file, t2_file, ont, filter_typ
     else:
         raise Exception('{} does not exist'.format(file_interactions))
 
-    # graph = Graph(directed=True)
     graph = Graph(directed=False)
     vertices = np.unique(np.concatenate((ppi[['protein1']].values, ppi[['protein2']].values))).tolist()
     graph.add_vertices(vertices)
