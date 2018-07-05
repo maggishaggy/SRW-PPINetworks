@@ -32,8 +32,12 @@ def eval_predictions_protein_centric(source, scores, t1_anno, t2_anno, indices, 
     return pr, re, f1, len(ret_anno)
 
 
-def max_f1_measure(array):
-    return np.max(array)
+def f1_measure(avg_p, avg_r):
+    return round((2 * avg_p * avg_r) / (avg_p + avg_r), 10)
+
+
+def maximum_f1_measure(array):
+    return round(np.max(array), 10)
 
 
 def average_precision(array_1, array_2):
@@ -44,19 +48,21 @@ def average_recall(array):
     return round(np.average(array), 10)
 
 
-def write_results(ont, filter_type, measures, max_f1, avg_p, avg_r, n, t):
+def write_results(ont, filter_type, measures, max_f1, n):
     with open(f'data/trained/human_ppi_{filter_type}/evaluation_results_{ont}.csv', 'w+') as f:
-        f.write('PID,Precision,Recall,F1-measure\n')
-        for pid in measures.keys():
-            f.write(f'{pid},{measures[pid][0]},{measures[pid][1]},{measures[pid][2]}\n')
+        f.write('Threshold,PID,Precision,Recall,F1-measure\n')
+        for t in measures.keys():
+            for key in measures[t].keys():
+                value = measures[t][key]
+                if type(value) is list:
+                    f.write(f'{t},{key},{value[0]},{value[1]},{value[2]}\n')
+                else:
+                    f.write(f'{key},{value}\n')
         f.write(f'Maximum F1-measure,{max_f1}\n')
-        f.write(f'Average Precision,{avg_p}\n')
-        f.write(f'Average Recall,{avg_r}\n')
         f.write(f'Number of proteins for prediction,{n}\n')
-        f.write(f'Threshold,{t}\n')
 
 
-def test_model(file_interactions, file_test, t1_file, t2_file, ont, filter_type, model_file, n, t=None):
+def test_model(file_interactions, file_test, t1_file, t2_file, ont, filter_type, model_file, n, thresholds):
 
     if os.path.exists(file_interactions):
         ppi = pd.read_csv(file_interactions, header=0, sep='\t').fillna(0)
@@ -112,18 +118,25 @@ def test_model(file_interactions, file_test, t1_file, t2_file, ont, filter_type,
     t2_ann = pd.read_csv(t2_file, header=0, sep='\t', names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
     indices = graph.vs['name']
     measures = dict()
-    precision, recall, f1_measure, number_of_predictions = [], [], [], []
-    for source in test_data['sources']:
-        pr, re, f1, num = eval_predictions_protein_centric(source, results[source], t1_ann, t2_ann, indices, n, t)
-        measures[indices[source]] = [pr, re, f1]
-        precision.append(pr)
-        recall.append(re)
-        f1_measure.append(f1)
-        number_of_predictions.append(num)
-    max_f1 = max_f1_measure(f1_measure)
-    avg_p = average_precision(precision, number_of_predictions)
-    avg_r = average_recall(recall)
-    write_results(ont, filter_type, measures, max_f1, avg_p, avg_r, n, t)
+    f1_measures = []
+    for t in thresholds:
+        precision, recall, number_of_predictions = [], [], []
+        measures[t] = dict()
+        for source in test_data['sources']:
+            pr, re, f1, num = eval_predictions_protein_centric(source, results[source], t1_ann, t2_ann, indices, n, t)
+            measures[t][indices[source]] = [pr, re, f1]
+            precision.append(pr)
+            recall.append(re)
+            number_of_predictions.append(num)
+        avg_p = average_precision(precision, number_of_predictions)
+        avg_r = average_recall(recall)
+        f_1 = f1_measure(avg_p, avg_r)
+        f1_measures.append(f_1)
+        measures[t]['Average precision'] = avg_p
+        measures[t]['Average recall'] = avg_r
+        measures[t]['F1-measure'] = f_1
+    max_f1 = maximum_f1_measure(f1_measures)
+    write_results(ont, filter_type, measures, max_f1, n)
 
 
 if __name__ == '__main__':
@@ -135,4 +148,4 @@ if __name__ == '__main__':
     t2_annotations = f'data/human_ppi_{filtering_type}/t2/HumanPPI_GO_{onto}_no_bias.txt'
     model_file = f'data/trained/human_ppi_{filtering_type}/model_{onto}_no_bias.npy'
     test_model(file, test_file, t1_annotations, t2_annotations,
-               onto, filtering_type, model_file, 5, 0.3)
+               onto, filtering_type, model_file, 5, [0.05, 0.1, 0.3])
