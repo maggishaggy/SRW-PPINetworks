@@ -21,15 +21,45 @@ def calculate_measures(rel, ret):
     return round(precision, 10), round(recall, 10), round(f1, 10)
 
 
-def eval_predictions_protein_centric(source, scores, t1_anno, t2_anno, indices, n, t=None):
+def eval_predictions_protein_centric(source, scores, t1_anno, t2_anno, indices, n, t):
     preds = sorted([(i, s) for i, s in zip(range(len(scores[0])), scores[0])], key=lambda x: x[1], reverse=True)[:n]
-    if t is not None:
-        preds = [p for p in preds if p[1] > t]
+    preds = [p for p in preds if p[1] > t]
     rel_anno = t2_anno[indices[source]]
     ret_anno = [t1_anno[indices[p[0]]] for p in preds if indices[p[0]] in t1_anno.keys()]
     ret_anno = np.unique(np.concatenate(ret_anno)) if len(ret_anno) > 0 else []
     pr, re, f1 = calculate_measures(rel_anno, ret_anno)
     return pr, re, f1, len(ret_anno)
+
+
+def eval_predictions_term_centric(term, scores, t1_anno, t2_anno, indices, n, t):
+    rel_ret = 0
+    rel = 0
+    ret = 0
+    not_rel_not_ret = 0
+    not_rel = 0
+    for p in scores.keys():
+        rel_anno = t2_anno[indices[p]]
+        preds = sorted([(i, s) for i, s in zip(range(len(scores[p][0])), scores[p][0])],
+                       key=lambda x: x[1], reverse=True)[:n]
+        preds = [p for p in preds if p[1] > t]
+        ret_anno = [t1_anno[indices[p[0]]] for p in preds if indices[p[0]] in t1_anno.keys()]
+        ret_anno = np.unique(np.concatenate(ret_anno)) if len(ret_anno) > 0 else []
+        if term in rel_anno and term in ret_anno:
+            rel_ret += 1
+        if term in ret_anno:
+            ret += 1
+        if term in rel_anno:
+            rel += 1
+        else:
+            not_rel += 1
+        if term not in rel_anno and term not in ret_anno:
+            not_rel_not_ret += 1
+    se = rel_ret * 1.0 / rel if rel != 0 else 0
+    sp = not_rel_not_ret * 1.0 / not_rel if not_rel != 0 else 0
+    re = se
+    pr = rel_ret * 1.0 / ret if ret != 0 else 0
+    f1 = (2 * pr * re) / (pr + re) if pr + re != 0 else 0
+    return round(se, 10), round(sp, 10), round(re, 10), round(pr, 10), round(f1, 10)
 
 
 def f1_measure(avg_p, avg_r):
@@ -48,19 +78,49 @@ def average_recall(array):
     return round(np.average(array), 10)
 
 
-def write_results(ont, filter_type, measures, max_f1, n):
-    with open(f'data/trained/human_ppi_{filter_type}/evaluation_results_{ont}.csv', 'w+') as f:
+def create_test_terms(protein_sources, t2_anno, indices):
+    terms = [t2_anno[indices[source]] for source in protein_sources if indices[source] in t2_anno.keys()]
+    return np.unique(np.concatenate(terms))
+
+
+def write_results_protein_centric(ont, filter_type, measures, max_f1, n):
+    with open(f'data/trained/human_ppi_{filter_type}/protein_centric_evaluation_results_{ont}.csv', 'w+') as f:
         f.write('Threshold,PID,Precision,Recall,F1-measure\n')
         for t in measures.keys():
             for key in measures[t].keys():
                 value = measures[t][key]
                 if type(value) is list:
                     f.write(f'{t},{key},{value[0]},{value[1]},{value[2]}\n')
-                else:
-                    f.write(f'{key},{value}\n')
+        f.write('\n')
+        f.write('Threshold,Average precision\n')
+        for t in measures.keys():
+            f.write(f'{t},{measures[t]["Average precision"]}\n')
+        f.write('\n')
+        f.write('Threshold,Average recall\n')
+        for t in measures.keys():
+            f.write(f'{t},{measures[t]["Average recall"]}\n')
+        f.write('\n')
+        f.write('Threshold,F1-measure\n')
+        for t in measures.keys():
+            f.write(f'{t},{measures[t]["F1-measure"]}\n')
+        f.write('\n')
         f.write(f'Maximum F1-measure,{max_f1}\n')
-        f.write(f'Number of proteins for prediction,{n}\n')
+        f.write(f'Number of proteins for prediction,{n}')
 
+
+def write_results_term_centric(ont, filter_type, measures, max_f1_measures, n):
+    with open(f'data/trained/human_ppi_{filter_type}/term_centric_evaluation_results_{ont}.csv', 'w+') as f:
+        f.write('Threshold,GO ID,Sensitivity,Specificity,Recall,Precision,F1-measure\n')
+        for t in measures.keys():
+            for key in measures[t].keys():
+                value = measures[t][key]
+                f.write(f'{t},{key},{value[0]},{value[1]},{value[2]},{value[3]},{value[4]}\n')
+        f.write('\n')
+        f.write(f'GO ID,Maximum F1-measure\n')
+        for key in max_f1_measures.keys():
+            f.write(f'{key},{max_f1_measures[key]}\n')
+        f.write('\n')
+        f.write(f'Number of proteins for prediction,{n}')
 
 def test_model(file_interactions, file_test, t1_file, t2_file, ont, filter_type, model_file, n, thresholds):
 
@@ -92,6 +152,7 @@ def test_model(file_interactions, file_test, t1_file, t2_file, ont, filter_type,
         sources = [indices.index(source)
                    for source in pd.read_csv(file_test, header=0, sep='\t').protein_id.values.tolist()
                    if source in indices]
+        sources = sources[:10]
         test_data['num_sources'] = len(sources)
         test_data['sources'] = sources
 
@@ -117,6 +178,19 @@ def test_model(file_interactions, file_test, t1_file, t2_file, ont, filter_type,
     t1_ann = pd.read_csv(t1_file, header=0, sep='\t', names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
     t2_ann = pd.read_csv(t2_file, header=0, sep='\t', names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
     indices = graph.vs['name']
+
+    test_terms = create_test_terms(test_data['sources'], t2_ann, indices)
+    measures = dict()
+    max_f1_measures = dict()
+    for t in thresholds:
+        measures[t] = dict()
+        for term in test_terms:
+            se, sp, re, pr, f1 = eval_predictions_term_centric(term, results, t1_ann, t2_ann, indices, n, t)
+            measures[t][term] = [se, sp, re, pr, f1]
+            if term not in max_f1_measures.keys() or max_f1_measures[term] < f1:
+                max_f1_measures[term] = f1
+    write_results_term_centric(ont, filter_type, measures, max_f1_measures, n)
+
     measures = dict()
     f1_measures = []
     for t in thresholds:
@@ -136,7 +210,7 @@ def test_model(file_interactions, file_test, t1_file, t2_file, ont, filter_type,
         measures[t]['Average recall'] = avg_r
         measures[t]['F1-measure'] = f_1
     max_f1 = maximum_f1_measure(f1_measures)
-    write_results(ont, filter_type, measures, max_f1, n)
+    write_results_protein_centric(ont, filter_type, measures, max_f1, n)
 
 
 if __name__ == '__main__':
