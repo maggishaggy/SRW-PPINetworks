@@ -185,24 +185,31 @@ class SRW:
         train_writer = tf.summary.FileWriter(self.config.summary_dir,
                                              sess.graph)
 
-        for _ in tqdm(list(range(self.config.num_epochs)), desc='epoch'):
-            features = train_data['features']
-            adj = train_data['adj']
-            vertices = train_data['vertices']
-            for i, _ in enumerate(tqdm(list(range(train_data['num_sources'])), desc='source')):
-                source, destinations = train_data['data'][i]['source'], train_data['data'][i]['destinations']
-                feed_dict = {self.features: features,
-                             self.adj: adj,
-                             self.vertices: vertices,
-                             self.source: [source],
-                             self.destinations: destinations}
-                _, summary, global_step = sess.run([self.opt_op,
-                                                    self.summary,
-                                                    self.global_step],
-                                                   feed_dict=feed_dict)
-                if (global_step + 1) % self.config.save_period == 0:
-                    self.save()
-                train_writer.add_summary(summary, global_step)
+        with open(self.config.summary_dir + '/loss.txt', 'w') as f:
+
+            for _ in tqdm(list(range(self.config.num_epochs)), desc='epoch'):
+                features = train_data['features']
+                adj = train_data['adj']
+                vertices = train_data['vertices']
+                total_loss = 0.0
+                for i, _ in enumerate(tqdm(list(range(train_data['num_sources'])), desc='source')):
+                    source, destinations = train_data['data'][i]['source'], train_data['data'][i]['destinations']
+                    feed_dict = {self.features: features,
+                                 self.adj: adj,
+                                 self.vertices: vertices,
+                                 self.source: [source],
+                                 self.destinations: destinations}
+                    _, summary, global_step, loss = sess.run([self.opt_op,
+                                                              self.summary,
+                                                              self.global_step,
+                                                              self.loss],
+                                                             feed_dict=feed_dict)
+                    total_loss += loss
+                    if (global_step + 1) % self.config.save_period == 0:
+                        self.save()
+                    train_writer.add_summary(summary, global_step)
+                f.write(f"epoch: {j}, loss: {total_loss / train_data['num_sources']}\n")
+                f.flush()
 
         self.save()
         train_writer.close()

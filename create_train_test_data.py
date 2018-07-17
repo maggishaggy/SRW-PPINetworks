@@ -28,9 +28,9 @@ def create_train_test_data(proteins_k, proteins_lk, proteins_nk, train_file, tes
     with open(train_file, 'ab') as train_f, open(test_file, 'ab') as test_f:
         for proteins in [proteins_k, proteins_lk, proteins_nk]:
             length = proteins.shape[0]
-            train = proteins[:round(length*0.6)]
+            train = proteins[:round(length*0.7)]
             np.savetxt(train_f, train, fmt='%s')
-            test = proteins[round(length*0.6):]
+            test = proteins[round(length*0.7):]
             np.savetxt(test_f, test, fmt='%s')
 
 

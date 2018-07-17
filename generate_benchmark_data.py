@@ -83,11 +83,20 @@ def create_benchmark_data(type_filtering):
     t2_mf_file = f'data/human_ppi_{type_filtering}/t2/HumanPPI_GO_MF_no_bias.txt'
     t2_cc_file = f'data/human_ppi_{type_filtering}/t2/HumanPPI_GO_CC_no_bias.txt'
     t1_bp = pd.read_table(t1_bp_file, header=0, names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
+    bp_anno = set([x for y in list(t1_bp.values()) for x in y])
+    t2 = pd.read_table(t2_bp_file, header=0, names=['PID', 'GO'])
+    t2 = t2[t2.GO.isin(bp_anno)]
+    t2_bp = t2.groupby('PID')['GO'].apply(list).to_dict()
     t1_mf = pd.read_table(t1_mf_file, header=0, names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
+    mf_anno = set([x for y in list(t1_mf.values()) for x in y])
+    t2 = pd.read_table(t2_mf_file, header=0, names=['PID', 'GO'])
+    t2 = t2[t2.GO.isin(mf_anno)]
+    t2_mf = t2.groupby('PID')['GO'].apply(list).to_dict()
     t1_cc = pd.read_table(t1_cc_file, header=0, names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
-    t2_bp = pd.read_table(t2_bp_file, header=0, names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
-    t2_mf = pd.read_table(t2_mf_file, header=0, names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
-    t2_cc = pd.read_table(t2_cc_file, header=0, names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
+    cc_anno = set([x for y in list(t1_cc.values()) for x in y])
+    t2 = pd.read_table(t2_cc_file, header=0, names=['PID', 'GO'])
+    t2 = t2[t2.GO.isin(cc_anno)]
+    t2_cc = t2.groupby('PID')['GO'].apply(list).to_dict()
 
     create_no_knowledge_data(t2_bp, t1_bp, t1_mf, t1_cc, f'data/final/human_ppi_{type_filtering}/BP_no_bias_NK.txt')
     create_no_knowledge_data(t2_mf, t1_bp, t1_mf, t1_cc, f'data/final/human_ppi_{type_filtering}/MF_no_bias_NK.txt')

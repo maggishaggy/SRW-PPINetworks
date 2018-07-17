@@ -1,8 +1,8 @@
 class Config:
     def __init__(self, num_vertices, num_features, alpha, max_iter, lambda_param, epsilon,
                  small_epsilon, margin_loss, summary_dir, save_dir, num_epochs=100,
-                 save_period=1000, initial_learning_rate=0.001, learning_rate_decay_factor=1.0,
-                 num_steps_per_decay=100000, clip_gradients=5.0):
+                 save_period=1000, initial_learning_rate=0.1, learning_rate_decay_factor=1.0,
+                 num_steps_per_decay=100000, clip_gradients=5.0, num_classes=0):
         """
 
         :param num_features: number of features in the feature vector
@@ -32,6 +32,8 @@ class Config:
         :type num_steps_per_decay: int
         :param clip_gradients: parameter for clipping gradients
         :type clip_gradients: float
+        :param num_classes: number of GO terms as classes
+        :type num_classes: int
         """
         self.num_vertices = num_vertices
         self.num_features = num_features
@@ -49,3 +51,4 @@ class Config:
         self.learning_rate_decay_factor = learning_rate_decay_factor
         self.num_steps_per_decay = num_steps_per_decay
         self.clip_gradients = clip_gradients
+        self.num_classes = num_classes
