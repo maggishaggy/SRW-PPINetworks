@@ -6,7 +6,7 @@ from tqdm import tqdm
 import tensorflow as tf
 from config import Config
 from srw_model import SRW
-from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.preprocessing import MultiLabelBinarizer, minmax_scale
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
@@ -98,7 +98,7 @@ def eval_predictions_protein_centric(source, scores, t2_anno, mlb, t):
     :return:
     """
     rel_anno = t2_anno[source]
-    ret_anno = list(mlb.inverse_transform(np.array([np.where(scores[0] > t, 1, 0)]))[0])
+    ret_anno = list(mlb.inverse_transform(np.array([np.where(scores[0] >= t, 1, 0)]))[0])
     pr, re, f1 = calculate_measures(rel_anno, ret_anno)
     return pr, re, f1, len(ret_anno)
 
@@ -127,7 +127,7 @@ def eval_predictions_term_centric(term, scores, t2_anno, mlb, indices, t):
     not_rel = 0
     for p in scores.keys():
         rel_anno = t2_anno[indices[p]]
-        ret_anno = list(mlb.inverse_transform(np.array([np.where(scores[p][0] > t, 1, 0)]))[0])
+        ret_anno = list(mlb.inverse_transform(np.array([np.where(scores[p][0] >= t, 1, 0)]))[0])
         if term in rel_anno and term in ret_anno:
             rel_ret += 1
         if term in ret_anno:
@@ -157,9 +157,7 @@ def maximum_f1_measure(array):
 
 
 def average_precision(array_1, array_2):
-    if np.count_nonzero(array_2) == 0:
-        return 0.0
-    return round(np.sum(array_1) / np.count_nonzero(array_2), 10)
+    return round(np.sum(array_1) / max(np.count_nonzero(array_2), 1e-12), 10)
 
 
 def average_recall(array):
@@ -302,7 +300,7 @@ def calc_probability_classes(t1_file, results, graph):
     t1_anno = np.array(matrix)
 
     for key, value in results.items():
-        results[key] = [np.matmul(value[0].reshape([1, -1]), t1_anno).reshape(-1)]
+        results[key] = [minmax_scale(np.matmul(value[0].reshape([1, -1]), t1_anno).reshape(-1))]
     return results
 
 
@@ -447,15 +445,15 @@ def test_random_walks(file_interactions, file_test, t1_file, t2_file,
 
 if __name__ == '__main__':
     filtering_type = '700'
-    onto = 'CC'
+    onto = 'BP'
     file = f'data/final/human_ppi_{filtering_type}/HumanPPI_{onto}_no_bias.txt'
     test_file = f'data/final/human_ppi_{filtering_type}/test_{onto}_no_bias.txt'
     t1_annotations = f'data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_no_bias.txt'
     t2_annotations = f'data/human_ppi_{filtering_type}/t2/HumanPPI_GO_{onto}_no_bias.txt'
     trained_model_file = f'data/trained/human_ppi_{filtering_type}/model_{onto}_no_bias.npy'
-    test_model(file, test_file, t1_annotations, t2_annotations,
-               onto, filtering_type, trained_model_file, np.arange(0.0, 1.0, 0.01).tolist())
+    # test_model(file, test_file, t1_annotations, t2_annotations,
+    #            onto, filtering_type, trained_model_file, np.arange(0.0, 1.0, 0.01).tolist())
     # test_swr_no_weights(file, test_file, t1_annotations, t2_annotations,
     #                     onto, filtering_type, np.arange(0.0, 1.0, 0.01).tolist())
-    # test_random_walks(file, test_file, t1_annotations, t2_annotations,
-    #                   onto, filtering_type, np.arange(0.0, 1.0, 0.01).tolist())
+    test_random_walks(file, test_file, t1_annotations, t2_annotations,
+                      onto, filtering_type, np.arange(0.0, 1.0, 0.01).tolist())

@@ -71,9 +71,9 @@ class AnnoSRW:
         # one = np.zeros(Q_prim.shape, dtype=np.float32)
         # one[:, start_node] = 1.0
         # one = tf.constant(one)
-        one = tf.concat([tf.zeros([Q_prim.shape[0], start_node[0]-1], dtype=tf.float32),
+        one = tf.concat([tf.zeros([Q_prim.shape[0], start_node[0]], dtype=tf.float32),
                          tf.ones([Q_prim.shape[0], 1], dtype=tf.float32),
-                         tf.zeros([Q_prim.shape[0], -start_node[0] + Q_prim.shape[1]], dtype=tf.float32)],
+                         tf.zeros([Q_prim.shape[0], -start_node[0] - 1 + Q_prim.shape[1]], dtype=tf.float32)],
                         axis=1)
         return tf.add((1 - alpha) * Q_prim, alpha * one)
 
@@ -132,6 +132,13 @@ class AnnoSRW:
         p = self.iterative_page_rank(Q, self.config.epsilon, self.config.max_iter)
 
         result = tf.reshape(tf.matmul(tf.reshape(p, shape=[1, -1]), t1_anno), shape=[-1])
+
+        # normalization
+        result = tf.div(
+            tf.subtract(result, tf.reduce_min(result)),
+            tf.maximum(tf.subtract(tf.reduce_max(result), tf.reduce_min(result)),
+                       tf.constant(1e-12))
+        )
 
         if self.mode == 'training':
             annotations = tf.placeholder(dtype=tf.float32, shape=[None])

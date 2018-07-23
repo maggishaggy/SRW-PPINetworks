@@ -324,7 +324,7 @@ if __name__ == '__main__':
     test_file = f'data/final/human_ppi_{filtering_type}/test_{onto}_no_bias.txt'
     t1_annotations = f'data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_no_bias.txt'
     t2_annotations = f'data/human_ppi_{filtering_type}/t2/HumanPPI_GO_{onto}_no_bias.txt'
-    trained_model_file = f'data/trained/human_ppi_{filtering_type}/model_{onto}_no_bias.npy'
+    trained_model_file = f'data/trained/human_ppi_{filtering_type}/model_anno_{onto}_no_bias.npy'
     test_model(file, test_file, t1_annotations, t2_annotations,
                onto, filtering_type, trained_model_file, np.arange(0.0, 1.0, 0.01).tolist())
     # test_swr_no_weights(file, test_file, t1_annotations, t2_annotations,

@@ -325,8 +325,6 @@ def random_walks(graph, parameters, sources, alpha=0.3, max_iter=100):
     :type sources: list(int)
     :param alpha: restart probability
     :type alpha: float
-    :param lambda_param: regularization parameter
-    :type lambda_param: float
     :param max_iter: maximum number of iterations
     :type max_iter: int
     :return: p vector for every source node

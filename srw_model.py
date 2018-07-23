@@ -88,9 +88,9 @@ class SRW:
         # one = np.zeros(Q_prim.shape, dtype=np.float32)
         # one[:, start_node] = 1.0
         # one = tf.constant(one)
-        one = tf.concat([tf.zeros([Q_prim.shape[0], start_node[0]-1], dtype=tf.float32),
+        one = tf.concat([tf.zeros([Q_prim.shape[0], start_node[0]], dtype=tf.float32),
                          tf.ones([Q_prim.shape[0], 1], dtype=tf.float32),
-                         tf.zeros([Q_prim.shape[0], -start_node[0] + Q_prim.shape[1]], dtype=tf.float32)],
+                         tf.zeros([Q_prim.shape[0], -start_node[0] - 1 + Q_prim.shape[1]], dtype=tf.float32)],
                         axis=1)
         return tf.add((1 - alpha) * Q_prim, alpha * one)
 
@@ -187,7 +187,7 @@ class SRW:
 
         with open(self.config.summary_dir + '/loss.txt', 'w') as f:
 
-            for _ in tqdm(list(range(self.config.num_epochs)), desc='epoch'):
+            for j in tqdm(list(range(self.config.num_epochs)), desc='epoch'):
                 features = train_data['features']
                 adj = train_data['adj']
                 vertices = train_data['vertices']
