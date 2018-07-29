@@ -2,6 +2,7 @@ import time
 import functools
 import numpy as np
 import mxnet as mx
+from tqdm import tqdm
 from mxnet.context import gpu
 from scipy.optimize import fmin_l_bfgs_b
 
@@ -278,7 +279,7 @@ def gradient_function(graph, features, sources, destinations, alpha, max_iter,
     return gr.asnumpy().astype(np.float64)
 
 
-def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=1, margin_loss=0.4, max_iter=100):
+def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=1, margin_loss=0.4, max_iter=10000):
     """ Calculates the optimized parameter vector w with supervised random walk algorithm
     (lBFGS-b) from directed network
 
@@ -329,7 +330,7 @@ def callback_func(x):
         file.write(time.strftime("%c") + '\t' + '\t'.join(str(item) for item in x.tolist()) + '\n')
 
 
-def random_walks(graph, parameters, sources, alpha=0.3, max_iter=100):
+def random_walks(graph, parameters, sources, alpha=0.3, max_iter=10000):
     """ Random walk with given parameters and directed graph
 
     :param graph: igraph object
@@ -356,10 +357,10 @@ def random_walks(graph, parameters, sources, alpha=0.3, max_iter=100):
         graph.es['strength'] = strengths.reshape((-1,)).asnumpy()
         A = mx.nd.array(graph.get_adjacency(attribute='strength').data)
         Q_prim = get_stochastic_transition_matrix(A)
-        result = mx.nd.zeros((len(sources), Q_prim.shape[0]))
-        for source, i in zip(sources, range(len(sources))):
+        result = dict()
+        for source in tqdm(sources):
             Q = get_transition_matrix(Q_prim, source, alpha)
             p = iterative_page_rank(Q, epsilon, max_iter)
-            result[i] = p
+            result[source] = [p.asnumpy()]
 
-    return result.asnumpy()
+    return result
