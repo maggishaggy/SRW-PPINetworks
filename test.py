@@ -511,6 +511,61 @@ def test_random_walks(file_interactions, file_test, t1_file, t2_file,
     evaluate('random_walk', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
 
 
+def test_naive_method(file_interactions, file_test, t1_file, t2_file,
+                      ont, filter_type, thresholds):
+    """ Evaluate the Naive method (frequency of terms) with protein- and term-centric metrics
+
+    :param file_interactions: name of the file with protein-protein interactions
+    :type file_interactions: str
+    :param file_test: name of the file for the test data
+    :type file_test: str
+    :param t1_file: name of the file containing the annotations from time step 1
+    :type t1_file: str
+    :param t2_file: name of the file containing the annotations from time step 2
+    :type t2_file: str
+    :param ont: name of the current ontology (BP, CC or MF)
+    :type ont: str
+    :param filter_type: current filter type of the protein interactions (700 or 900)
+    :type filter_type: str
+    :param thresholds: thresholds values for probabilities of predictions
+    :type thresholds: list(float)
+    :return: None
+    """
+    test_data, graph = prepare_test_data(file_interactions, file_test, ont, filter_type)
+    test_data['features'] = np.ones((test_data['features'].shape[0], 1))
+    if os.path.exists(f'data/trained/human_ppi_{filter_type}/predictions_naive{ont}.pkl'):
+        with open(f'data/trained/human_ppi_{filter_type}/predictions_naive{ont}.pkl', 'rb') as f:
+            results = pickle.load(f)
+    else:
+        print("Predicting ...")
+        t1_ann = pd.read_csv(t1_file, header=0, sep='\t',
+                             names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
+        anno = set([x for y in list(t1_ann.values()) for x in y])
+        mlb = MultiLabelBinarizer()
+        mlb.fit([anno])
+
+        matrix = []
+        for vertex in graph.vs:
+            anno = set(t1_ann[vertex['name']]) if vertex['name'] in t1_ann else set()
+            annotations = mlb.transform([anno])[0]
+            matrix.append(annotations)
+        t1_anno = np.array(matrix)
+
+        num_proteins = t1_anno.shape[0]
+        freq = np.sum(t1_anno, axis=0) / num_proteins
+        freq = minmax_scale(freq)
+
+        results = dict()
+        for i, _ in enumerate(tqdm(list(range(test_data['num_sources'])), desc='source')):
+            source = test_data['sources'][i]
+            results[source] = [freq]
+
+        with open(f'data/trained/human_ppi_{filter_type}/predictions_naive{ont}.pkl', 'wb') as f:
+            pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
+
+    evaluate('naive', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
+
+
 if __name__ == '__main__':
     filtering_type = '700'
     onto = 'MF'
@@ -526,9 +581,11 @@ if __name__ == '__main__':
 
     # test_srw_lbfgs(file, test_file, t1_annotations, t2_annotations,
     #                weights, filtering_type, onto, thresh)
-    test_model(file, test_file, t1_annotations, t2_annotations,
-               onto, filtering_type, trained_model_file, thresh)
+    # test_model(file, test_file, t1_annotations, t2_annotations,
+    #            onto, filtering_type, trained_model_file, thresh)
     # test_swr_no_weights(file, test_file, t1_annotations, t2_annotations,
     #                     onto, filtering_type, thresh)
     # test_random_walks(file, test_file, t1_annotations, t2_annotations,
     #                   onto, filtering_type, thresh)
+    test_naive_method(file, test_file, t1_annotations, t2_annotations,
+                      onto, filtering_type, thresh)
