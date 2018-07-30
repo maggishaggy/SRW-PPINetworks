@@ -9,8 +9,7 @@ from anno_srw_model import AnnoSRW
 from sklearn.preprocessing import MultiLabelBinarizer
 
 from test import eval_predictions_protein_centric, eval_predictions_term_centric, \
-                 f1_measure, maximum_f1_measure, average_precision, average_recall, \
-                 create_test_terms
+                 f1_measure, average_precision, average_recall, create_test_terms
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
@@ -83,7 +82,7 @@ def prepare_test_data(file_interactions, file_test, ont, filter_type, t1_file):
     return test_data, graph
 
 
-def write_results_protein_centric(method, ont, filter_type, measures, max_f1):
+def write_results_protein_centric(method, ont, filter_type, measures, max_f1, avg_p, avg_r):
     with open(f'data/trained/human_ppi_{filter_type}/protein_centric_evaluation_results_anno_{method}_{ont}.csv',
               'w+') as f:
         f.write('Threshold,PID,Precision,Recall,F1-measure\n')
@@ -106,6 +105,8 @@ def write_results_protein_centric(method, ont, filter_type, measures, max_f1):
             f.write(f'{t},{measures[t]["F1-measure"]}\n')
         f.write('\n')
         f.write(f'Maximum F1-measure,{max_f1}\n')
+        f.write(f'Average precision,{avg_p}\n')
+        f.write(f'Average recall,{avg_r}\n')
 
 
 def write_results_term_centric(method, ont, filter_type, measures, max_f1_measures):
@@ -168,7 +169,9 @@ def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_ty
     write_results_term_centric(method, ont, filter_type, measures, max_f1_measures)
 
     measures = dict()
-    f1_measures = []
+    max_f1 = 0.0
+    max_f1_avr_p = 0.0
+    max_f1_avg_r = 0.0
     for t in tqdm(thresholds):
         precision, recall, number_of_predictions = [], [], []
         measures[t] = dict()
@@ -181,12 +184,14 @@ def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_ty
         avg_p = average_precision(precision, number_of_predictions)
         avg_r = average_recall(recall)
         f_1 = f1_measure(avg_p, avg_r)
-        f1_measures.append(f_1)
+        if max_f1 < f_1:
+            max_f1 = f_1
+            max_f1_avr_p = avg_p
+            max_f1_avg_r = avg_r
         measures[t]['Average precision'] = avg_p
         measures[t]['Average recall'] = avg_r
         measures[t]['F1-measure'] = f_1
-    max_f1 = maximum_f1_measure(f1_measures)
-    write_results_protein_centric(method, ont, filter_type, measures, max_f1)
+    write_results_protein_centric(method, ont, filter_type, measures, max_f1, max_f1_avr_p, max_f1_avg_r)
 
 
 def test_model(file_interactions, file_test, t1_file, t2_file,
@@ -218,7 +223,7 @@ def test_model(file_interactions, file_test, t1_file, t2_file,
             results = pickle.load(f)
     else:
         conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                      lambda_param=1, margin_loss=0.4, max_iter=1000, epsilon=1e-12,
+                      lambda_param=1, margin_loss=0.4, max_iter=500, epsilon=1e-12,
                       small_epsilon=1e-18, summary_dir=f'summary_anno_{ont}', save_dir=f'models_anno_{ont}',
                       num_classes=test_data['num_classes'])
         with tf.Session() as sess:
@@ -259,7 +264,7 @@ def test_swr_no_weights(file_interactions, file_test, t1_file, t2_file,
             results = pickle.load(f)
     else:
         conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                      lambda_param=1, margin_loss=0.4, max_iter=1000, epsilon=1e-12,
+                      lambda_param=1, margin_loss=0.4, max_iter=500, epsilon=1e-12,
                       small_epsilon=1e-18, summary_dir=f'summary_{ont}', save_dir=f'models_{ont}')
 
         with tf.Session() as sess:
@@ -302,7 +307,7 @@ def test_random_walks(file_interactions, file_test, t1_file, t2_file,
             results = pickle.load(f)
     else:
         conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                      lambda_param=1, margin_loss=0.4, max_iter=1000, epsilon=1e-12,
+                      lambda_param=1, margin_loss=0.4, max_iter=500, epsilon=1e-12,
                       small_epsilon=1e-18, summary_dir=f'summary_anno_{ont}', save_dir=f'models_anno_{ont}',
                       num_classes=test_data['num_classes'])
 

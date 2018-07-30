@@ -93,22 +93,21 @@ class AnnoSRW:
         i0 = tf.constant(0)
         p0 = tf.divide(tf.ones((1, trans_mat.shape[0])), tf.cast(trans_mat.shape[0], tf.float32))
         p_new0 = tf.tensordot(p0, trans_mat, 1)
-        condition = lambda i, p, p_new, trans: tf.logical_or(tf.less(tf.reduce_max(tf.abs(tf.subtract(p, p_new))),
-                                                                     epsilon),
-                                                             tf.greater_equal(i, max_iter))
+        condition = lambda i, p, p_new, trans: tf.reduce_max(tf.abs(tf.subtract(p, p_new))) > epsilon
 
         def loop_logic(i, p, p_new, trans):
             shape = p.get_shape()
-            i = i+1
+            i = i + 1
             p = p_new
             p.set_shape(shape)
             p_new = tf.tensordot(p, trans, 1)
             p_new.set_shape(shape)
             return [i, p, p_new, trans]
 
-        tf.while_loop(condition, loop_logic, loop_vars=[i0, p0, p_new0, trans_mat],
-                      shape_invariants=[i0.get_shape(), p0.get_shape(),
-                                        p_new0.get_shape(), trans_mat.get_shape()])
+        _, _, p_new0, _ = tf.while_loop(condition, loop_logic, loop_vars=[i0, p0, p_new0, trans_mat],
+                                        shape_invariants=[i0.get_shape(), p0.get_shape(),
+                                                          p_new0.get_shape(), trans_mat.get_shape()],
+                                        maximum_iterations=max_iter)
 
         return p_new0[0]
 

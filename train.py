@@ -216,7 +216,7 @@ def train_model(file_interactions, file_train, t1_file, t2_file, ont, filter_typ
             pickle.dump(train_data, f, pickle.HIGHEST_PROTOCOL)
 
     conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                  lambda_param=1, margin_loss=0.4, max_iter=1000, epsilon=1e-12,
+                  lambda_param=1, margin_loss=0.4, max_iter=500, epsilon=1e-12,
                   small_epsilon=1e-18, summary_dir=f'summary_{ont}', save_dir=f'models_{ont}')
     with tf.Session() as sess:
         model = SRW(conf, mode='training')
@@ -228,7 +228,7 @@ def train_model(file_interactions, file_train, t1_file, t2_file, ont, filter_typ
 if __name__ == '__main__':
     # train_dummy_example()
     filtering_type = '700'
-    onto = 'CC'
+    onto = 'MF'
     file = f'data/final/human_ppi_{filtering_type}/HumanPPI_{onto}_no_bias.txt'
     train_file = f'data/final/human_ppi_{filtering_type}/train_{onto}_no_bias.txt'
     t1_annotations = f'data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_no_bias.txt'

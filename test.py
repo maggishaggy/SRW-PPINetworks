@@ -6,6 +6,7 @@ from tqdm import tqdm
 import tensorflow as tf
 from config import Config
 from srw_model import SRW
+from supervised_random_walks_gpu import random_walks
 from sklearn.preprocessing import MultiLabelBinarizer, minmax_scale
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
@@ -152,10 +153,6 @@ def f1_measure(avg_p, avg_r):
     return round((2 * avg_p * avg_r) / (avg_p + avg_r), 10)
 
 
-def maximum_f1_measure(array):
-    return round(np.max(array), 10)
-
-
 def average_precision(array_1, array_2):
     return round(np.sum(array_1) / max(np.count_nonzero(array_2), 1e-12), 10)
 
@@ -169,7 +166,7 @@ def create_test_terms(protein_sources, t2_anno, indices):
     return np.unique(np.concatenate(terms))
 
 
-def write_results_protein_centric(method, ont, filter_type, measures, max_f1):
+def write_results_protein_centric(method, ont, filter_type, measures, max_f1, avg_p, avg_r):
     with open(f'data/trained/human_ppi_{filter_type}/protein_centric_evaluation_results_{method}_{ont}.csv', 'w+') as f:
         f.write('Threshold,PID,Precision,Recall,F1-measure\n')
         for t in measures.keys():
@@ -191,6 +188,8 @@ def write_results_protein_centric(method, ont, filter_type, measures, max_f1):
             f.write(f'{t},{measures[t]["F1-measure"]}\n')
         f.write('\n')
         f.write(f'Maximum F1-measure,{max_f1}\n')
+        f.write(f'Average precision,{avg_p}\n')
+        f.write(f'Average recall,{avg_r}\n')
 
 
 def write_results_term_centric(method, ont, filter_type, measures, max_f1_measures):
@@ -253,7 +252,9 @@ def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_ty
     write_results_term_centric(method, ont, filter_type, measures, max_f1_measures)
 
     measures = dict()
-    f1_measures = []
+    max_f1 = 0.0
+    max_f1_avr_p = 0.0
+    max_f1_avg_r = 0.0
     for t in tqdm(thresholds):
         precision, recall, number_of_predictions = [], [], []
         measures[t] = dict()
@@ -266,15 +267,17 @@ def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_ty
         avg_p = average_precision(precision, number_of_predictions)
         avg_r = average_recall(recall)
         f_1 = f1_measure(avg_p, avg_r)
-        f1_measures.append(f_1)
+        if max_f1 < f_1:
+            max_f1 = f_1
+            max_f1_avr_p = avg_p
+            max_f1_avg_r = avg_r
         measures[t]['Average precision'] = avg_p
         measures[t]['Average recall'] = avg_r
         measures[t]['F1-measure'] = f_1
-    max_f1 = maximum_f1_measure(f1_measures)
-    write_results_protein_centric(method, ont, filter_type, measures, max_f1)
+    write_results_protein_centric(method, ont, filter_type, measures, max_f1, max_f1_avr_p, max_f1_avg_r)
 
 
-def calc_probability_classes(t1_file, results, graph):
+def calc_probability_classes(t1_file, results, graph, mode='all'):
     """ Calculates the class probabilities from the p vector
 
     :param t1_file: name of the file containing the annotations from time step 1
@@ -283,9 +286,13 @@ def calc_probability_classes(t1_file, results, graph):
     :type results: dict
     :param graph: protein interactions graph
     :type graph: igraph Graph object
+    :param mode: the evaluation mode, one of ['all', 'chi']
+    :type mode: str
     :return: class probabilities
     :rtype: dict
     """
+    assert mode in ['all', 'chi2']
+
     t1_ann = pd.read_csv(t1_file, header=0, sep='\t',
                          names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
     anno = set([x for y in list(t1_ann.values()) for x in y])
@@ -299,9 +306,74 @@ def calc_probability_classes(t1_file, results, graph):
         matrix.append(annotations)
     t1_anno = np.array(matrix)
 
-    for key, value in results.items():
-        results[key] = [minmax_scale(np.matmul(value[0].reshape([1, -1]), t1_anno).reshape(-1))]
+    if mode == 'all':
+        for key, value in results.items():
+            results[key] = [minmax_scale(np.matmul(value[0].reshape([1, -1]), t1_anno).reshape(-1))]
+    else:
+        num_proteins = t1_anno.shape[0]
+        freq = np.sum(t1_anno, axis=0) / num_proteins
+        neighborhood_size = num_proteins
+        for key, value in results.items():
+            n_j = np.sum(t1_anno[np.argsort(value[0])[:neighborhood_size]], axis=0)
+            e_j = freq * neighborhood_size
+            results[key] = [minmax_scale(np.nan_to_num(np.divide(np.square(np.subtract(n_j, e_j)), e_j)))]
     return results
+
+
+def test_srw_lbfgs(file_interactions, file_test, t1_file, t2_file, w, filter_type, ont, thresholds):
+    """ Evaluate the Supervised Random Walks algorithm (mxnet) with protein- and term-centric metrics
+
+    :param file_interactions: name of the file with protein-protein interactions
+    :type file_interactions: str
+    :param file_test: name of the file for the test data
+    :type file_test: str
+    :param t1_file: name of the file containing the annotations from time step 1
+    :type t1_file: str
+    :param t2_file: name of the file containing the annotations from time step 2
+    :type t2_file: str
+    :param w: learned parameters of the trained model
+    :param w: numpy.array
+    :param filter_type: current filter type of the protein interactions (700 or 900)
+    :type filter_type: str
+    :param ont: name of the current ontology (BP, CC or MF)
+    :type ont: str
+    :param thresholds: thresholds values for probabilities of predictions
+    :type thresholds: list(float)
+    :return: None
+    """
+    if os.path.exists(file_interactions):
+        ppi = pd.read_csv(file_interactions, header=0, sep='\t').fillna(0)
+        scores = ppi.combined_score.values
+        ppi.combined_score = (scores - int(filter_type)) / (1000 - int(filter_type))
+    else:
+        raise Exception('{} does not exist'.format(file_interactions))
+
+    graph = Graph(directed=False)
+    vertices = np.unique(np.concatenate((ppi[['protein1']].values, ppi[['protein2']].values))).tolist()
+    graph.add_vertices(vertices)
+    graph.add_edges(ppi[['protein1', 'protein2']].values)
+    for feature in ppi.columns[9:]:
+        graph.es[feature] = ppi[feature].values.tolist()
+
+    del ppi
+
+    indices = graph.vs['name']
+    sources = [indices.index(source)
+               for source in pd.read_csv(file_test, header=0, sep='\t').protein_id.values.tolist()
+               if source in indices]
+    test_data = dict()
+    test_data['sources'] = sources
+
+    if os.path.exists(f'data/trained/human_ppi_{filter_type}/predictions_srw_lbfgs{ont}.pkl'):
+        with open(f'data/trained/human_ppi_{filter_type}/predictions_srw{ont}.pkl', 'rb') as f:
+            results = pickle.load(f)
+    else:
+        results = random_walks(graph.copy(), w, sources)
+        results = calc_probability_classes(t1_file, results, graph)
+        with open(f'data/trained/human_ppi_{filter_type}/predictions_srw_lbfgs{ont}.pkl', 'wb') as f:
+            pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
+
+    evaluate('srw_lbfgs', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
 
 
 def test_model(file_interactions, file_test, t1_file, t2_file,
@@ -333,16 +405,12 @@ def test_model(file_interactions, file_test, t1_file, t2_file,
             results = pickle.load(f)
     else:
         conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                      lambda_param=1, margin_loss=0.4, max_iter=10000, epsilon=1e-12,
+                      lambda_param=1, margin_loss=0.4, max_iter=500, epsilon=1e-12,
                       small_epsilon=1e-18, summary_dir=f'summary_{ont}', save_dir=f'models_{ont}')
         with tf.Session() as sess:
             model = SRW(conf, mode='inference')
             sess.run(tf.global_variables_initializer())
             model.load(sess, model_file)
-            # weights = tf.global_variables()[0]
-            # sess.run(weights.assign(np.array([-7.565122782132602, 0.43171067626253357, 1.3190980108033072,
-            #                                   -3.42624258727104, 1.0739606936051764, 6.334479697770692,
-            #                                   4.419444407845334]).reshape(-1, 1)))
             tf.get_default_graph().finalize()
             results = model.predict(sess, test_data)
 
@@ -380,7 +448,7 @@ def test_swr_no_weights(file_interactions, file_test, t1_file, t2_file,
             results = pickle.load(f)
     else:
         conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                      lambda_param=1, margin_loss=0.4, max_iter=10000, epsilon=1e-12,
+                      lambda_param=1, margin_loss=0.4, max_iter=500, epsilon=1e-12,
                       small_epsilon=1e-18, summary_dir=f'summary_{ont}', save_dir=f'models_{ont}')
 
         with tf.Session() as sess:
@@ -425,7 +493,7 @@ def test_random_walks(file_interactions, file_test, t1_file, t2_file,
             results = pickle.load(f)
     else:
         conf = Config(num_vertices=len(graph.vs.indices), num_features=1, alpha=0.3,
-                      lambda_param=1, margin_loss=0.4, max_iter=10000, epsilon=1e-12,
+                      lambda_param=1, margin_loss=0.4, max_iter=500, epsilon=1e-12,
                       small_epsilon=1e-18, summary_dir=f'summary_{ont}', save_dir=f'models_{ont}')
 
         with tf.Session() as sess:
@@ -445,15 +513,22 @@ def test_random_walks(file_interactions, file_test, t1_file, t2_file,
 
 if __name__ == '__main__':
     filtering_type = '700'
-    onto = 'BP'
+    onto = 'MF'
     file = f'data/final/human_ppi_{filtering_type}/HumanPPI_{onto}_no_bias.txt'
     test_file = f'data/final/human_ppi_{filtering_type}/test_{onto}_no_bias.txt'
     t1_annotations = f'data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_no_bias.txt'
     t2_annotations = f'data/human_ppi_{filtering_type}/t2/HumanPPI_GO_{onto}_no_bias.txt'
     trained_model_file = f'data/trained/human_ppi_{filtering_type}/model_{onto}_no_bias.npy'
-    # test_model(file, test_file, t1_annotations, t2_annotations,
-    #            onto, filtering_type, trained_model_file, np.arange(0.0, 1.0, 0.01).tolist())
+
+    thresh = np.arange(0.0, 1.0, 0.01).tolist()
+    # weights = np.array([-19.294310026204435, 5.330593119631642, 3.813617959343676,
+    #                     4.993226619825181, 3.590840567377463, 3.8299759907244377, 2.570128129396818])
+
+    # test_srw_lbfgs(file, test_file, t1_annotations, t2_annotations,
+    #                weights, filtering_type, onto, thresh)
+    test_model(file, test_file, t1_annotations, t2_annotations,
+               onto, filtering_type, trained_model_file, thresh)
     # test_swr_no_weights(file, test_file, t1_annotations, t2_annotations,
-    #                     onto, filtering_type, np.arange(0.0, 1.0, 0.01).tolist())
-    test_random_walks(file, test_file, t1_annotations, t2_annotations,
-                      onto, filtering_type, np.arange(0.0, 1.0, 0.01).tolist())
+    #                     onto, filtering_type, thresh)
+    # test_random_walks(file, test_file, t1_annotations, t2_annotations,
+    #                   onto, filtering_type, thresh)
