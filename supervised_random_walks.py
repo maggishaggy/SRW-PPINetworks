@@ -264,7 +264,7 @@ def gradient_function(graph, features, sources, destinations, alpha, max_iter,
     return gr
 
 
-def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=1, margin_loss=0.4, max_iter=10000):
+def supervised_random_walks(graph, sources, destinations, alpha=0.3, lambda_par=1, margin_loss=0.4, max_iter=1000):
     """ Calculates the optimized parameter vector w with supervised random walk algorithm
     (lBFGS-b) from directed network
 
@@ -315,7 +315,7 @@ def callback_func(x):
         file.write(time.strftime("%c") + '\t' + '\t'.join(str(item) for item in x.tolist()) + '\n')
 
 
-def random_walks(graph, parameters, sources, alpha=0.3, max_iter=10000):
+def random_walks(graph, parameters, sources, alpha=0.3, max_iter=1000):
     """ Random walk with given parameters and directed graph
 
     :param graph: igraph object

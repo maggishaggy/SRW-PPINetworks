@@ -218,7 +218,7 @@ def test_model(file_interactions, file_test, t1_file, t2_file,
             results = pickle.load(f)
     else:
         conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                      lambda_param=1, margin_loss=0.4, max_iter=10000, epsilon=1e-12,
+                      lambda_param=1, margin_loss=0.4, max_iter=1000, epsilon=1e-12,
                       small_epsilon=1e-18, summary_dir=f'summary_anno_{ont}', save_dir=f'models_anno_{ont}',
                       num_classes=test_data['num_classes'])
         with tf.Session() as sess:
@@ -259,7 +259,7 @@ def test_swr_no_weights(file_interactions, file_test, t1_file, t2_file,
             results = pickle.load(f)
     else:
         conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                      lambda_param=1, margin_loss=0.4, max_iter=10000, epsilon=1e-12,
+                      lambda_param=1, margin_loss=0.4, max_iter=1000, epsilon=1e-12,
                       small_epsilon=1e-18, summary_dir=f'summary_{ont}', save_dir=f'models_{ont}')
 
         with tf.Session() as sess:
@@ -302,7 +302,7 @@ def test_random_walks(file_interactions, file_test, t1_file, t2_file,
             results = pickle.load(f)
     else:
         conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                      lambda_param=1, margin_loss=0.4, max_iter=10000, epsilon=1e-12,
+                      lambda_param=1, margin_loss=0.4, max_iter=1000, epsilon=1e-12,
                       small_epsilon=1e-18, summary_dir=f'summary_anno_{ont}', save_dir=f'models_anno_{ont}',
                       num_classes=test_data['num_classes'])
 

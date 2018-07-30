@@ -9,7 +9,7 @@ from srw_model import SRW
 from supervised_random_walks_gpu import supervised_random_walks as srw_gpu
 from supervised_random_walks import supervised_random_walks as srw, random_walks as rw
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 
 def train_dummy_example():
@@ -55,6 +55,19 @@ def train_dummy_example():
 
 
 def train_protein_based_function_prediction(graph, sources, destinations, gpu=False):
+    """
+
+    :param graph: igraph object of the PPI network
+    :type graph: igraph.Graph
+    :param sources: list of indices of source nodes
+    :type sources: list(int)
+    :param destinations: list of indices of destination nodes
+    :type destinations: list(list(int))
+    :param gpu: whether to use the CPU or GPU version (CPU=False, GPU=True)
+    :type gpu: bool
+    :return: learned weights
+    :rtype: numpy.array
+    """
     start = time.time()
     if gpu:
         result = srw_gpu(graph.copy(), sources, destinations)
@@ -71,7 +84,25 @@ def train_protein_based_function_prediction(graph, sources, destinations, gpu=Fa
     return w
 
 
-def protein_based_function_prediction(file_interactions, file_train, t1_file, t2_file, file_weights, ont, filter_type):
+def protein_based_function_prediction(file_interactions, file_train, t1_file,
+                                      t2_file, file_weights, ont, filter_type):
+    """ Trains the supervised random walk model for function prediction using lBFGS-b
+
+    :param file_interactions: name of the file with protein-protein interactions
+    :type file_interactions: str
+    :param file_train: name of the file for the train data
+    :param file_train: str
+    :param t1_file: name of the file containing the annotations from time step 1
+    :type t1_file: str
+    :param t2_file: name of the file containing the annotations from time step 2
+    :type t2_file: str
+    :param file_weights: file to save the weights
+    :param file_weights: str
+    :type ont: str
+    :param filter_type: current filter type of the protein interactions (700 or 900)
+    :type filter_type: str
+    :return: None
+    """
     if os.path.exists(file_interactions):
         ppi = pd.read_csv(file_interactions, header=0, sep='\t').fillna(0)
         scores = ppi.combined_score.values
@@ -118,6 +149,22 @@ def protein_based_function_prediction(file_interactions, file_train, t1_file, t2
 
 
 def train_model(file_interactions, file_train, t1_file, t2_file, ont, filter_type):
+    """ Trains the SRW model for function prediction
+
+    :param file_interactions: name of the file with protein-protein interactions
+    :type file_interactions: str
+    :param file_train: name of the file for the train data
+    :param file_train: str
+    :param t1_file: name of the file containing the annotations from time step 1
+    :type t1_file: str
+    :param t2_file: name of the file containing the annotations from time step 2
+    :type t2_file: str
+    :param ont: name of the current ontology (BP, CC or MF)
+    :type ont: str
+    :param filter_type: current filter type of the protein interactions (700 or 900)
+    :type filter_type: str
+    :return: None
+    """
 
     if os.path.exists(file_interactions):
         ppi = pd.read_csv(file_interactions, header=0, sep='\t').fillna(0)
@@ -169,7 +216,7 @@ def train_model(file_interactions, file_train, t1_file, t2_file, ont, filter_typ
             pickle.dump(train_data, f, pickle.HIGHEST_PROTOCOL)
 
     conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                  lambda_param=1, margin_loss=0.4, max_iter=10000, epsilon=1e-12,
+                  lambda_param=1, margin_loss=0.4, max_iter=1000, epsilon=1e-12,
                   small_epsilon=1e-18, summary_dir=f'summary_{ont}', save_dir=f'models_{ont}')
     with tf.Session() as sess:
         model = SRW(conf, mode='training')

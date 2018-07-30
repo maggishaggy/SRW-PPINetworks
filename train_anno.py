@@ -69,7 +69,7 @@ def train_model(file_interactions, file_train, t1_file, t2_file, ont, filter_typ
             pickle.dump(train_data, f, pickle.HIGHEST_PROTOCOL)
 
     conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                  lambda_param=1, margin_loss=0.4, max_iter=10000, epsilon=1e-12,
+                  lambda_param=1, margin_loss=0.4, max_iter=1000, epsilon=1e-12,
                   small_epsilon=1e-18, summary_dir=f'summary_anno_{ont}', save_dir=f'models_anno_{ont}',
                   num_classes=train_data['num_classes'])
     with tf.Session() as sess:
