@@ -165,7 +165,7 @@ class SRW:
                                                              tf.expand_dims(source, axis=0)))
             l_set = tf.sparse_tensor_to_dense(l_set)[0]
             diff = self.get_differences(p, l_set, destinations)
-            loss = self.loss_function(diff, self.config.margin_loss)
+            loss = tf.reduce_sum(tf.square(w)) + self.loss_function(diff, self.config.margin_loss)
             # loss = tf.nn.relu(diff)
             self.loss = tf.reduce_sum(loss)
             self.vertices = vertices
