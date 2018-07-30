@@ -1,7 +1,7 @@
 class Config:
     def __init__(self, num_vertices, num_features, alpha, max_iter, lambda_param, epsilon,
                  small_epsilon, margin_loss, summary_dir, save_dir, num_epochs=100,
-                 save_period=1000, initial_learning_rate=0.1, learning_rate_decay_factor=1.0,
+                 save_period=1000, initial_learning_rate=0.01, learning_rate_decay_factor=1.0,
                  num_steps_per_decay=100000, clip_gradients=5.0, num_classes=0):
         """
 
