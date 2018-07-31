@@ -271,10 +271,15 @@ def evaluate(method, test_data, graph, results, t1_file, t2_file,
         with open('data/go/go_ancestors.pkl', 'rb') as f:
             ancestors = pickle.load(f)
 
+    # needed_terms = pd.read_csv(f'data/final/human_ppi_{filter_type}/{ont}_no_bias_NK.txt',
+    #                            sep='\t', header=0).protein_id.values.tolist()
+
     for t in tqdm(thresholds):
         precision, recall, number_of_predictions = [], [], []
         measures[t] = dict()
         for source in tqdm(test_data['sources']):
+            # if indices[source] not in needed_terms:
+            #     continue
             pr, re, f1, num = eval_predictions_protein_centric(indices[source], results[source],
                                                                t2_ann, mlb, t, ancestors)
             measures[t][indices[source]] = [pr, re, f1]
