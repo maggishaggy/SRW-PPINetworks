@@ -83,7 +83,7 @@ def calculate_measures(rel, ret):
     return round(precision, 10), round(recall, 10), round(f1, 10)
 
 
-def eval_predictions_protein_centric(source, scores, t2_anno, mlb, t):
+def eval_predictions_protein_centric(source, scores, t2_anno, mlb, t, ancestors):
     """ Calculates protein-centric metrics for predictions
 
     :param source: STRING ID of the source protein
@@ -96,10 +96,16 @@ def eval_predictions_protein_centric(source, scores, t2_anno, mlb, t):
     :type: sklearn.preprocessing.MultiLabelBinarizer object
     :param t: threshold for predictions
     :type t: float
-    :return:
+    :param ancestors: ancestors of each GO term
+    :type ancestors: dict(set)
+    :return: precision, recall, f1, number of predicted terms
+    :rtype: float, float, float, int
     """
     rel_anno = t2_anno[source]
     ret_anno = list(mlb.inverse_transform(np.array([np.where(scores[0] >= t, 1, 0)]))[0])
+    if ancestors is not None:
+        rel_anno = set.union(*[ancestors[x] for x in rel_anno])
+        ret_anno = set.union(*[ancestors[x] for x in ret_anno])
     pr, re, f1 = calculate_measures(rel_anno, ret_anno)
     return pr, re, f1, len(ret_anno)
 
@@ -206,7 +212,8 @@ def write_results_term_centric(method, ont, filter_type, measures, max_f1_measur
         f.write('\n')
 
 
-def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds):
+def evaluate(method, test_data, graph, results, t1_file, t2_file,
+             ont, filter_type, thresholds, add_parents=False):
     """ Make evaluation of the predictions with protein- and term-centric metrics
 
     :param method: name of the method used to make the predictions
@@ -227,6 +234,8 @@ def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_ty
     :type filter_type: str
     :param thresholds: thresholds values for probabilities of predictions
     :type thresholds: list(float)
+    :param add_parents: flag to add parent terms on the predictions or just use leaves terms
+    :type add_parents: bool
     :return: None
     """
     t1_ann = pd.read_csv(t1_file, header=0, sep='\t', names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
@@ -255,11 +264,19 @@ def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_ty
     max_f1 = 0.0
     max_f1_avr_p = 0.0
     max_f1_avg_r = 0.0
+
+    ancestors = None
+
+    if add_parents:
+        with open('data/go/go_ancestors.pkl', 'rb') as f:
+            ancestors = pickle.load(f)
+
     for t in tqdm(thresholds):
         precision, recall, number_of_predictions = [], [], []
         measures[t] = dict()
         for source in tqdm(test_data['sources']):
-            pr, re, f1, num = eval_predictions_protein_centric(indices[source], results[source], t2_ann, mlb, t)
+            pr, re, f1, num = eval_predictions_protein_centric(indices[source], results[source],
+                                                               t2_ann, mlb, t, ancestors)
             measures[t][indices[source]] = [pr, re, f1]
             precision.append(pr)
             recall.append(re)
@@ -320,7 +337,8 @@ def calc_probability_classes(t1_file, results, graph, mode='all'):
     return results
 
 
-def test_srw_lbfgs(file_interactions, file_test, t1_file, t2_file, w, filter_type, ont, thresholds):
+def test_srw_lbfgs(file_interactions, file_test, t1_file, t2_file, w,
+                   filter_type, ont, thresholds, add_parents=False):
     """ Evaluate the Supervised Random Walks algorithm (mxnet) with protein- and term-centric metrics
 
     :param file_interactions: name of the file with protein-protein interactions
@@ -339,6 +357,8 @@ def test_srw_lbfgs(file_interactions, file_test, t1_file, t2_file, w, filter_typ
     :type ont: str
     :param thresholds: thresholds values for probabilities of predictions
     :type thresholds: list(float)
+    :param add_parents: flag to add parent terms on the predictions or just use leafs
+    :type add_parents: bool
     :return: None
     """
     if os.path.exists(file_interactions):
@@ -373,11 +393,12 @@ def test_srw_lbfgs(file_interactions, file_test, t1_file, t2_file, w, filter_typ
         with open(f'data/trained/human_ppi_{filter_type}/predictions_srw_lbfgs{ont}.pkl', 'wb') as f:
             pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
 
-    evaluate('srw_lbfgs', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
+    evaluate('srw_lbfgs', test_data, graph, results, t1_file, t2_file,
+             ont, filter_type, thresholds, add_parents)
 
 
 def test_model(file_interactions, file_test, t1_file, t2_file,
-               ont, filter_type, model_file, thresholds):
+               ont, filter_type, model_file, thresholds, add_parents=False):
     """ Evaluate the Supervised Random Walks algorithm with protein- and term-centric metrics
 
     :param file_interactions: name of the file with protein-protein interactions
@@ -396,6 +417,8 @@ def test_model(file_interactions, file_test, t1_file, t2_file,
     :type model_file: str
     :param thresholds: thresholds values for probabilities of predictions
     :type thresholds: list(float)
+    :param add_parents: flag to add parent terms on the predictions or just use leafs
+    :type add_parents: bool
     :return: None
     """
     test_data, graph = prepare_test_data(file_interactions, file_test, ont, filter_type)
@@ -419,11 +442,12 @@ def test_model(file_interactions, file_test, t1_file, t2_file,
         with open(f'data/trained/human_ppi_{filter_type}/predictions_srw{ont}.pkl', 'wb') as f:
             pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
 
-    evaluate('srw', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
+    evaluate('srw', test_data, graph, results, t1_file, t2_file,
+             ont, filter_type, thresholds, add_parents)
 
 
 def test_swr_no_weights(file_interactions, file_test, t1_file, t2_file,
-                        ont, filter_type, thresholds):
+                        ont, filter_type, thresholds, add_parents=False):
     """ Evaluate the Supervised Random Walks algorithm (no learned weights) with protein- and term-centric metrics
 
     :param file_interactions: name of the file with protein-protein interactions
@@ -440,6 +464,8 @@ def test_swr_no_weights(file_interactions, file_test, t1_file, t2_file,
     :type filter_type: str
     :param thresholds: thresholds values for probabilities of predictions
     :type thresholds: list(float)
+    :param add_parents: flag to add parent terms on the predictions or just use leafs
+    :type add_parents: bool
     :return: None
     """
     test_data, graph = prepare_test_data(file_interactions, file_test, ont, filter_type)
@@ -463,11 +489,12 @@ def test_swr_no_weights(file_interactions, file_test, t1_file, t2_file,
         with open(f'data/trained/human_ppi_{filter_type}/predictions_srw_no_weights{ont}.pkl', 'wb') as f:
             pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
 
-    evaluate('srw_no_weights', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
+    evaluate('srw_no_weights', test_data, graph, results, t1_file, t2_file,
+             ont, filter_type, thresholds, add_parents)
 
 
 def test_random_walks(file_interactions, file_test, t1_file, t2_file,
-                      ont, filter_type, thresholds):
+                      ont, filter_type, thresholds, add_parents=False):
     """ Evaluate the Random Walks algorithm with protein- and term-centric metrics
 
     :param file_interactions: name of the file with protein-protein interactions
@@ -484,6 +511,8 @@ def test_random_walks(file_interactions, file_test, t1_file, t2_file,
     :type filter_type: str
     :param thresholds: thresholds values for probabilities of predictions
     :type thresholds: list(float)
+    :param add_parents: flag to add parent terms on the predictions or just use leafs
+    :type add_parents: bool
     :return: None
     """
     test_data, graph = prepare_test_data(file_interactions, file_test, ont, filter_type)
@@ -508,11 +537,12 @@ def test_random_walks(file_interactions, file_test, t1_file, t2_file,
         with open(f'data/trained/human_ppi_{filter_type}/predictions_random_walk{ont}.pkl', 'wb') as f:
             pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
 
-    evaluate('random_walk', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
+    evaluate('random_walk', test_data, graph, results, t1_file, t2_file,
+             ont, filter_type, thresholds, add_parents)
 
 
 def test_naive_method(file_interactions, file_test, t1_file, t2_file,
-                      ont, filter_type, thresholds):
+                      ont, filter_type, thresholds, add_parents=False):
     """ Evaluate the Naive method (frequency of terms) with protein- and term-centric metrics
 
     :param file_interactions: name of the file with protein-protein interactions
@@ -529,6 +559,8 @@ def test_naive_method(file_interactions, file_test, t1_file, t2_file,
     :type filter_type: str
     :param thresholds: thresholds values for probabilities of predictions
     :type thresholds: list(float)
+    :param add_parents: flag to add parent terms on the predictions or just use leafs
+    :type add_parents: bool
     :return: None
     """
     test_data, graph = prepare_test_data(file_interactions, file_test, ont, filter_type)
@@ -563,7 +595,8 @@ def test_naive_method(file_interactions, file_test, t1_file, t2_file,
         with open(f'data/trained/human_ppi_{filter_type}/predictions_naive{ont}.pkl', 'wb') as f:
             pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
 
-    evaluate('naive', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
+    evaluate('naive', test_data, graph, results, t1_file, t2_file,
+             ont, filter_type, thresholds, add_parents)
 
 
 if __name__ == '__main__':
@@ -588,4 +621,4 @@ if __name__ == '__main__':
     # test_random_walks(file, test_file, t1_annotations, t2_annotations,
     #                   onto, filtering_type, thresh)
     test_naive_method(file, test_file, t1_annotations, t2_annotations,
-                      onto, filtering_type, thresh)
+                      onto, filtering_type, thresh, True)
