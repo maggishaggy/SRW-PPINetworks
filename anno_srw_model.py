@@ -8,7 +8,7 @@ from keras import losses
 
 
 class AnnoSRW:
-    def __init__(self, config, mode):
+    def __init__(self, config, mode, hybrid_weights=True):
         """ Initialization of the model
 
         :param config: configuration parameters
@@ -17,6 +17,7 @@ class AnnoSRW:
         assert mode in ['training', 'inference']
         self.config = config
         self.mode = mode
+        self.hybrid_weights = hybrid_weights
         self.build()
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         if self.mode == 'training':
@@ -126,7 +127,17 @@ class AnnoSRW:
                             dense_shape=tf.shape(adj, out_type=tf.int64))
         # hack for bug in tensorflow because sparse_tensor_to_dense() does not have gradient
         A = tf.sparse_add(tf.zeros(tf.cast(A.dense_shape, tf.int32)), A)
-        Q_prim = self.get_stochastic_transition_matrix(A)
+
+        if self.hybrid_weights:
+            row_sum = tf.reduce_sum(adj, axis=1)
+            col_sum = tf.reduce_sum(adj, axis=0)
+            W = 1/2 * (tf.matmul(A, (adj / tf.reshape(row_sum, (-1, 1)))) +
+                       tf.matmul(A, (adj / tf.reshape(col_sum, (1, -1)))))
+            W2 = 1/2 * (A + W)
+            Q_prim = self.get_stochastic_transition_matrix(W2)
+        else:
+            Q_prim = self.get_stochastic_transition_matrix(A)
+
         Q = self.get_transition_matrix(Q_prim, source, self.config.alpha)
         p = self.iterative_page_rank(Q, self.config.epsilon, self.config.max_iter)
 

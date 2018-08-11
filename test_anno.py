@@ -123,7 +123,8 @@ def write_results_term_centric(method, ont, filter_type, measures, max_f1_measur
             f.write(f'{key},{max_f1_measures[key]}\n')
 
 
-def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds):
+def evaluate(method, test_data, graph, results, t1_file, t2_file,
+             ont, filter_type, thresholds, add_parents=False):
     """ Make evaluation of the predictions with protein- and term-centric metrics
 
     :param method: name of the method used to make the predictions
@@ -144,6 +145,8 @@ def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_ty
     :type filter_type: str
     :param thresholds: thresholds values for probabilities of predictions
     :type thresholds: list(float)
+    :param add_parents: flag to add parent terms on the predictions or just use leaves terms
+    :type add_parents: bool
     :return: None
     """
     t1_ann = pd.read_csv(t1_file, header=0, sep='\t', names=['PID', 'GO']).groupby('PID')['GO'].apply(list).to_dict()
@@ -172,11 +175,19 @@ def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_ty
     max_f1 = 0.0
     max_f1_avr_p = 0.0
     max_f1_avg_r = 0.0
+
+    ancestors = None
+
+    if add_parents:
+        with open('data/go/go_ancestors.pkl', 'rb') as f:
+            ancestors = pickle.load(f)
+
     for t in tqdm(thresholds):
         precision, recall, number_of_predictions = [], [], []
         measures[t] = dict()
         for source in tqdm(test_data['sources']):
-            pr, re, f1, num = eval_predictions_protein_centric(indices[source], results[source], t2_ann, mlb, t)
+            pr, re, f1, num = eval_predictions_protein_centric(indices[source], results[source],
+                                                               t2_ann, mlb, t, ancestors)
             measures[t][indices[source]] = [pr, re, f1]
             precision.append(pr)
             recall.append(re)
@@ -195,7 +206,7 @@ def evaluate(method, test_data, graph, results, t1_file, t2_file, ont, filter_ty
 
 
 def test_model(file_interactions, file_test, t1_file, t2_file,
-               ont, filter_type, model_file, thresholds):
+               ont, filter_type, model_file, thresholds, add_parents=False):
     """ Evaluate the Supervised Random Walks algorithm with protein- and term-centric metrics
 
     :param file_interactions: name of the file with protein-protein interactions
@@ -214,6 +225,8 @@ def test_model(file_interactions, file_test, t1_file, t2_file,
     :type model_file: str
     :param thresholds: thresholds values for probabilities of predictions
     :type thresholds: list(float)
+    :param add_parents: flag to add parent terms on the predictions or just use leafs
+    :type add_parents: bool
     :return: None
     """
     test_data, graph = prepare_test_data(file_interactions, file_test, ont, filter_type, t1_file)
@@ -232,14 +245,16 @@ def test_model(file_interactions, file_test, t1_file, t2_file,
             model.load(sess, model_file)
             tf.get_default_graph().finalize()
             results = model.predict(sess, test_data)
+
         with open(f'data/trained/human_ppi_{filter_type}/preds_anno_srw{ont}.pkl', 'wb') as f:
             pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
 
-    evaluate('srw', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
+    evaluate('srw', test_data, graph, results, t1_file, t2_file, ont,
+             filter_type, thresholds, add_parents)
 
 
 def test_swr_no_weights(file_interactions, file_test, t1_file, t2_file,
-                        ont, filter_type, thresholds):
+                        ont, filter_type, thresholds, add_parents=False):
     """ Evaluate the Supervised Random Walks algorithm (no learned weights) with protein- and term-centric metrics
 
     :param file_interactions: name of the file with protein-protein interactions
@@ -256,6 +271,8 @@ def test_swr_no_weights(file_interactions, file_test, t1_file, t2_file,
     :type filter_type: str
     :param thresholds: thresholds values for probabilities of predictions
     :type thresholds: list(float)
+    :param add_parents: flag to add parent terms on the predictions or just use leafs
+    :type add_parents: bool
     :return: None
     """
     test_data, graph = prepare_test_data(file_interactions, file_test, ont, filter_type, t1_file)
@@ -277,54 +294,13 @@ def test_swr_no_weights(file_interactions, file_test, t1_file, t2_file,
         with open(f'data/trained/human_ppi_{filter_type}/preds_anno_srw_no_weights{ont}.pkl', 'wb') as f:
             pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
 
-    evaluate('srw_no_weights', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
-
-
-def test_random_walks(file_interactions, file_test, t1_file, t2_file,
-                      ont, filter_type, thresholds):
-    """ Evaluate the Random Walks algorithm with protein- and term-centric metrics
-
-    :param file_interactions: name of the file with protein-protein interactions
-    :type file_interactions: str
-    :param file_test: name of the file for the test data
-    :type file_test: str
-    :param t1_file: name of the file containing the annotations from time step 1
-    :type t1_file: str
-    :param t2_file: name of the file containing the annotations from time step 2
-    :type t2_file: str
-    :param ont: name of the current ontology (BP, CC or MF)
-    :type ont: str
-    :param filter_type: current filter type of the protein interactions (700 or 900)
-    :type filter_type: str
-    :param thresholds: thresholds values for probabilities of predictions
-    :type thresholds: list(float)
-    :return: None
-    """
-    test_data, graph = prepare_test_data(file_interactions, file_test, ont, filter_type, t1_file)
-    test_data['features'] = np.ones((test_data['features'].shape[0], 1))
-    if os.path.exists(f'data/trained/human_ppi_{filter_type}/preds_anno_random_walk{ont}.pkl'):
-        with open(f'data/trained/human_ppi_{filter_type}/preds_anno_random_walk{ont}.pkl', 'rb') as f:
-            results = pickle.load(f)
-    else:
-        conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
-                      lambda_param=1, margin_loss=0.4, max_iter=500, epsilon=1e-12,
-                      small_epsilon=1e-18, summary_dir=f'summary_anno_{ont}', save_dir=f'models_anno_{ont}',
-                      num_classes=test_data['num_classes'])
-
-        with tf.Session() as sess:
-            model = AnnoSRW(conf, mode='inference')
-            tf.get_default_graph().finalize()
-            results = model.predict(sess, test_data)
-
-        with open(f'data/trained/human_ppi_{filter_type}/preds_anno_random_walk{ont}.pkl', 'wb') as f:
-            pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
-
-    evaluate('random_walk', test_data, graph, results, t1_file, t2_file, ont, filter_type, thresholds)
+    evaluate('srw_no_weights', test_data, graph, results, t1_file, t2_file, ont,
+             filter_type, thresholds, add_parents)
 
 
 if __name__ == '__main__':
     filtering_type = '700'
-    onto = 'CC'
+    onto = 'MF'
     file = f'data/final/human_ppi_{filtering_type}/HumanPPI_{onto}_no_bias.txt'
     test_file = f'data/final/human_ppi_{filtering_type}/test_{onto}_no_bias.txt'
     t1_annotations = f'data/human_ppi_{filtering_type}/HumanPPI_GO_{onto}_no_bias.txt'
@@ -334,5 +310,3 @@ if __name__ == '__main__':
                onto, filtering_type, trained_model_file, np.arange(0.0, 1.0, 0.01).tolist())
     # test_swr_no_weights(file, test_file, t1_annotations, t2_annotations,
     #                     onto, filtering_type, np.arange(0.0, 1.0, 0.01).tolist())
-    # test_random_walks(file, test_file, t1_annotations, t2_annotations,
-    #                   onto, filtering_type, np.arange(0.0, 1.0, 0.01).tolist())
