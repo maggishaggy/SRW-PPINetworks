@@ -5,6 +5,7 @@ from igraph import *
 from tqdm import tqdm
 import tensorflow as tf
 from config import Config
+from sklearn import metrics
 from anno_srw_model import AnnoSRW
 from sklearn.preprocessing import MultiLabelBinarizer
 
@@ -118,9 +119,12 @@ def write_results_term_centric(method, ont, filter_type, measures, max_f1_measur
                 value = measures[t][key]
                 f.write(f'{t},{key},{value[0]},{value[1]},{value[2]},{value[3]},{value[4]}\n')
         f.write('\n')
-        f.write(f'GO ID,Maximum F1-measure\n')
+        f.write(f'GO ID,Maximum F1-measure,AUC\n')
         for key in max_f1_measures.keys():
-            f.write(f'{key},{max_f1_measures[key]}\n')
+            tpr = np.array([measures[t][key][0] for t in measures.keys()])  # se
+            fpr = 1 - np.array([measures[t][key][1] for t in measures.keys()])  # sp
+            auc = metrics.auc(fpr, tpr)
+            f.write(f'{key},{max_f1_measures[key]},{auc}\n')
 
 
 def evaluate(method, test_data, graph, results, t1_file, t2_file,
@@ -282,7 +286,8 @@ def test_swr_no_weights(file_interactions, file_test, t1_file, t2_file,
     else:
         conf = Config(num_vertices=len(graph.vs.indices), num_features=7, alpha=0.3,
                       lambda_param=1, margin_loss=0.4, max_iter=500, epsilon=1e-12,
-                      small_epsilon=1e-18, summary_dir=f'summary_{ont}', save_dir=f'models_{ont}')
+                      small_epsilon=1e-18, summary_dir=f'summary_{ont}', save_dir=f'models_{ont}',
+                      num_classes=test_data['num_classes'])
 
         with tf.Session() as sess:
             model = AnnoSRW(conf, mode='inference')

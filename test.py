@@ -6,6 +6,7 @@ from tqdm import tqdm
 import tensorflow as tf
 from config import Config
 from srw_model import SRW
+from sklearn import metrics
 from supervised_random_walks_gpu import random_walks
 from sklearn.preprocessing import MultiLabelBinarizer, minmax_scale
 
@@ -206,9 +207,12 @@ def write_results_term_centric(method, ont, filter_type, measures, max_f1_measur
                 value = measures[t][key]
                 f.write(f'{t},{key},{value[0]},{value[1]},{value[2]},{value[3]},{value[4]}\n')
         f.write('\n')
-        f.write(f'GO ID,Maximum F1-measure\n')
+        f.write(f'GO ID,Maximum F1-measure, AUC\n')
         for key in max_f1_measures.keys():
-            f.write(f'{key},{max_f1_measures[key]}\n')
+            tpr = np.array([measures[t][key][0] for t in measures.keys()])  # se
+            fpr = 1 - np.array([measures[t][key][1] for t in measures.keys()])  # sp
+            auc = metrics.auc(fpr, tpr)
+            f.write(f'{key},{max_f1_measures[key]},{auc}\n')
         f.write('\n')
 
 
