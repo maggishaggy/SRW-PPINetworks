@@ -131,9 +131,9 @@ class AnnoSRW:
         if self.hybrid_weights:
             row_sum = tf.reduce_sum(adj, axis=1)
             col_sum = tf.reduce_sum(adj, axis=0)
-            W = 1/2 * (tf.matmul(A, (adj / tf.reshape(row_sum, (-1, 1)))) +
-                       tf.matmul(A, (adj / tf.reshape(col_sum, (1, -1)))))
-            W2 = 1/2 * (A + W)
+            W = 1 / 2 * (tf.matmul(A, (adj / tf.reshape(col_sum, (1, -1)))) +
+                         tf.matmul((adj / tf.reshape(row_sum, (-1, 1))), A))
+            W2 = 1 / 2 * (A + W)
             Q_prim = self.get_stochastic_transition_matrix(W2)
         else:
             Q_prim = self.get_stochastic_transition_matrix(A)
