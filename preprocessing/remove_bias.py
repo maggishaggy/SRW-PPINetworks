@@ -69,6 +69,16 @@ def remove_bias(annotations_file, go_file, output_file):
     annotations.to_csv(output_file, sep='\t', index=False)
 
 
+def count_number_t_p(annotations_file, new_annotations_file):
+    old_anno = pd.read_csv(annotations_file, sep='\t', header=0)
+    new_anno = pd.read_csv(new_annotations_file, sep='\t', header=0)
+    print(f'Number of proteins before filtering: {len(set(old_anno["protein_id"].get_values()))}')
+    print(f'Number of proteins after filtering: {len(set(new_anno["protein_id"].get_values()))}')
+    print(f'Number of terms before filtering: {len(set(old_anno["go_id"].get_values()))}')
+    print(f'Number of terms after filtering: {len(set(new_anno["go_id"].get_values()))}')
+    print()
+
+
 if __name__ == '__main__':
     print("(" + time.strftime("%c") + ")  Remove bias in the HumanPPI700 GO BP file...")
     remove_bias('../data/human_ppi_700/HumanPPI_GO_BP.txt',
@@ -95,3 +105,44 @@ if __name__ == '__main__':
     remove_bias('../data/human_ppi_900/HumanPPI_GO_CC.txt',
                 '../data/go/CCGOfull.txt',
                 '../data/human_ppi_900/HumanPPI_GO_CC_no_bias.txt')
+
+    print('===== t1 ======')
+    print('HumanPPI 700 BP')
+    count_number_t_p('../data/human_ppi_700/HumanPPI_GO_BP.txt',
+                     '../data/human_ppi_700/HumanPPI_GO_BP_no_bias.txt')
+    print('HumanPPI 700 CC')
+    count_number_t_p('../data/human_ppi_700/HumanPPI_GO_CC.txt',
+                     '../data/human_ppi_700/HumanPPI_GO_CC_no_bias.txt')
+    print('HumanPPI 700 MF')
+    count_number_t_p('../data/human_ppi_700/HumanPPI_GO_MF.txt',
+                     '../data/human_ppi_700/HumanPPI_GO_MF_no_bias.txt')
+    print('HumanPPI 900 BP')
+    count_number_t_p('../data/human_ppi_900/HumanPPI_GO_BP.txt',
+                     '../data/human_ppi_900/HumanPPI_GO_BP_no_bias.txt')
+    print('HumanPPI 900 CC')
+    count_number_t_p('../data/human_ppi_900/HumanPPI_GO_CC.txt',
+                     '../data/human_ppi_900/HumanPPI_GO_CC_no_bias.txt')
+    print('HumanPPI 900 MF')
+    count_number_t_p('../data/human_ppi_900/HumanPPI_GO_MF.txt',
+                     '../data/human_ppi_900/HumanPPI_GO_MF_no_bias.txt')
+
+    print()
+    print('===== t2 ======')
+    print('HumanPPI 700 BP')
+    count_number_t_p('../data/human_ppi_700/t2/HumanPPI_GO_BP.txt',
+                     '../data/human_ppi_700/t2/HumanPPI_GO_BP_no_bias.txt')
+    print('HumanPPI 700 CC')
+    count_number_t_p('../data/human_ppi_700/t2/HumanPPI_GO_CC.txt',
+                     '../data/human_ppi_700/t2/HumanPPI_GO_CC_no_bias.txt')
+    print('HumanPPI 700 MF')
+    count_number_t_p('../data/human_ppi_700/t2/HumanPPI_GO_MF.txt',
+                     '../data/human_ppi_700/t2/HumanPPI_GO_MF_no_bias.txt')
+    print('HumanPPI 900 BP')
+    count_number_t_p('../data/human_ppi_900/t2/HumanPPI_GO_BP.txt',
+                     '../data/human_ppi_900/t2/HumanPPI_GO_BP_no_bias.txt')
+    print('HumanPPI 900 CC')
+    count_number_t_p('../data/human_ppi_900/t2/HumanPPI_GO_CC.txt',
+                     '../data/human_ppi_900/t2/HumanPPI_GO_CC_no_bias.txt')
+    print('HumanPPI 900 MF')
+    count_number_t_p('../data/human_ppi_900/t2/HumanPPI_GO_MF.txt',
+                     '../data/human_ppi_900/t2/HumanPPI_GO_MF_no_bias.txt')
